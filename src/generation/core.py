@@ -1,26 +1,32 @@
-import re
-import os
+from src.utils import call_llm
+from src.generation.prompts import PROGRAMMER_PROMPT_TEMPLATE
+from src.generation.asset_gen import generate_assets
+from src.generation.file_utils import save_code_to_file
 
 
-def save_code_to_file(raw_text, output_dir="output"):
-    """Regex 解析並存檔"""
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+def generate_code(gdd_context, asset_json, provider="openai", model="gpt-4o-mini"):
+    """產出 Python 代碼"""
+    full_prompt = f"""
+    GDD:
+    {gdd_context}
 
-    pattern = r"```python(.*?)```"
-    match = re.search(pattern, raw_text, re.DOTALL)
+    ASSETS (JSON):
+    {asset_json}
 
-    if match:
-        clean_code = match.group(1).strip()
-        file_path = os.path.join(output_dir, "main.py")
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write(clean_code)
-        return file_path
-    else:
-        # Fallback: 嘗試直接存入
-        if "import pygame" in raw_text:
-            file_path = os.path.join(output_dir, "main.py")
-            with open(file_path, "w", encoding="utf-8") as f:
-                f.write(raw_text)
-            return file_path
-        return None
+    Write the full code now following the Template.
+    """
+    return call_llm(PROGRAMMER_PROMPT_TEMPLATE, full_prompt, provider=provider, model=model)
+
+
+def run_core_phase(gdd_context, provider="openai", model="gpt-4o-mini"):
+    print("[Member 2] 開始生成美術素材 (JSON)...")
+    assets = generate_assets(gdd_context, provider, model)
+    print(f"[Member 2] 素材完成: {assets[:50]}...")
+
+    print("[Member 2] 開始生成程式碼...")
+    raw_code = generate_code(gdd_context, assets, provider, model)
+
+    print("[Member 2] 存檔中...")
+    file_path = save_code_to_file(raw_code)
+
+    return file_path
