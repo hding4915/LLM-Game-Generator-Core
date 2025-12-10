@@ -13,7 +13,6 @@ Example Output:
 }
 """
 
-# Programmer (黃金範本)
 PROGRAMMER_PROMPT_TEMPLATE = """
 You are an expert Pygame Developer.
 Task: Write the complete 'main.py' based on the Design and Assets.

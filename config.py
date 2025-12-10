@@ -19,5 +19,6 @@ class Config:
 
     # OLLAMA
     OLLAMA_BASE_URL =  os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+    OLLAMA_API_KEY = os.getenv("OLLAMA_API_KEY")
 
 config = Config()

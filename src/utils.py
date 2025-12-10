@@ -11,7 +11,7 @@ def get_client_config(provider: str) -> dict | None:
     if provider == "openai":
         return {
             "api_key": config.OPENAI_API_KEY,
-            "base_url": None  # 使用官方預設
+            "base_url": None
         }
     elif provider == "groq":
         return {
@@ -20,7 +20,7 @@ def get_client_config(provider: str) -> dict | None:
         }
     elif provider == "ollama":
         return {
-            "api_key": "ollama",  # Ollama 隨意字串即可
+            "api_key": config.OLLAMA_API_KEY,
             "base_url": config.OLLAMA_BASE_URL
         }
     elif provider == "mistral":
