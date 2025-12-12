@@ -36,7 +36,7 @@ Analyze the following code for LOGIC ERRORS, specifically regarding CONTROLS and
 3. Is the player's speed/velocity non-zero? (Look for `speed = 0` bugs)
 4. Is `pygame.event.get()` called correctly to prevent freezing?
 5. Is the screen updated with `pygame.display.flip()` or `update()`?
-
+**Important**: The output should only be either "PASS" or "FAIL", do not include other texts.
 【OUTPUT FORMAT】:
 If the code is good and playable:
 PASS

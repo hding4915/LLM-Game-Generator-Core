@@ -29,6 +29,7 @@ def game_logic_check(file_path: str, provider: str = "openai", model: str = "gpt
              provider=provider,
              model=model
     )
+    print(f"[Member 3]: response of game_logic_check {response}")
     if response == "PASS": return True
     return False
 
