@@ -106,7 +106,7 @@ def run_fix_loop(gdd: str, file_path: str, provider: str = "openai",
         else:
             print(f"[Member 3]: ❌ 邏輯檢查失敗: {error_msg}, 正在修理邏輯")
             flash(f"❌ 邏輯檢查失敗: {error_msg}, 正在修理邏輯", "danger")
-            new_path, error_msg = run_fix(file_path, error_msg, provider, model, "logic", gdd)
+            new_path, error_msg = run_fix(file_path, error_msg, provider, model, "logic")
 
         fuzz_passed, error_msg = run_fuzz_test(file_path, config.FUZZER_RUNNING_TIME)
         if fuzz_passed:
@@ -117,7 +117,7 @@ def run_fix_loop(gdd: str, file_path: str, provider: str = "openai",
         else:
             print(f"[Member 3]: ❌ fuzzer 檢查失敗: {error_msg}, 正在修理邏輯")
             flash(f"❌ fuzzer 檢查失敗: {error_msg}, 正在修理邏輯", "danger")
-            new_path, error_msg = run_fix(file_path, error_msg, provider, model, "logic", gdd)
+            new_path, error_msg = run_fix(file_path, error_msg, provider, model, "logic")
 
         max_retries -= 1
 

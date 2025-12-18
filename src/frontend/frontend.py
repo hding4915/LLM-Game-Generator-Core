@@ -14,7 +14,7 @@ game_file_path_global = None
 last_check_message = None
 
 # Supporting providers
-PROVIDERS = ["openai", "groq", "mistral", "google", "ollama", "deepseek"]
+PROVIDERS = ["mistral", "openai", "groq", "google", "ollama", "deepseek"]
 
 
 @app.route("/", methods=["GET", "POST"])

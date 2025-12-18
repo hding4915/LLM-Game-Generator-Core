@@ -38,7 +38,7 @@ def generate_code(
 
     Write the full code now following the Template.
     """
-    return call_llm(PROGRAMMER_PROMPT_TEMPLATE, full_prompt, provider=provider, model=model)
+    return call_llm(PROGRAMMER_PROMPT_TEMPLATE, full_prompt, provider=provider, model=model, temperature=0.2)
 
 
 def generate_fuzzer_logic(
@@ -63,7 +63,7 @@ def generate_fuzzer_logic(
     print("[Member 2] Start to generate fuzzer logic")
     prompt = FUZZER_GENERATION_PROMPT.replace("{gdd}", gdd_context)
     print("[Member 2] Generating the custom fuzzer test script (Fuzzer)...")
-    return call_llm("You are a QA Engineer.", prompt, provider=provider, model=model)
+    return call_llm("You are a QA Engineer.", prompt, provider=provider, model=model, temperature=0.2)
 
 
 def run_core_phase(
