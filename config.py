@@ -96,4 +96,8 @@ class Config:
     CF_ACCESS_CLIENT_ID = os.getenv("CF_ACCESS_CLIENT_ID", None)
     CF_ACCESS_CLIENT_SECRET = os.getenv("CF_ACCESS_CLIENT_SECRET", None)
 
+    # Arcade config
+    ARCADE_SOURCE_DIR = os.path.join(os.path.dirname(__file__), "arcade_rag_knowledge_base")
+    ARCADE_COLLECTION_NAME = "arcade_v3_knowledge"
+
 config = Config()

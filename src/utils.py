@@ -1,7 +1,11 @@
 import openai
 import requests
+import json
 from config import config
-import os
+from src.generation.arcade_tools import get_arcade_3_0_api_conventions, search_arcade_kb
+from typing import List, Dict, Any, Optional
+
+from src.rag_service.rag import RagService
 
 
 def get_client_config(provider: str) -> dict | None:
@@ -151,31 +155,59 @@ def call_ollama(
         return f"Ollama Error: Unexpected response format. {response.text}"
 
 
+def execute_tool(tool_name: str, args: dict, rag_instance: Any = None) -> str:
+    """
+    根據工具名稱執行對應的本地函數。
+    """
+    try:
+        from src.generation.arcade_tools import get_arcade_3_0_api_conventions, search_arcade_kb
+    except ImportError:
+        return f"Error: Could not import game_generator tools. Check project structure."
+
+    if tool_name == "get_arcade_3_0_api_conventions":
+        return get_arcade_3_0_api_conventions()
+
+    if tool_name == "search_arcade_kb":
+        query = args.get("query", "")
+        if not rag_instance:
+            return "Error: RAG instance is not initialized or passed correctly."
+        return search_arcade_kb(query=query, rag=rag_instance)
+
+    return f"Error: Tool '{tool_name}' not found."
+
+
 def call_llm(
         system_prompt: str,
         user_prompt: str,
         provider: str = "openai",
         model: str = "gpt-4o-mini",
         temperature: float = 0.7,
-        max_tokens: int = 8192
+        max_tokens: int = 8192,
+        tools: Optional[List[Dict[str, Any]]] = None,
+        rag_instance: Any = None,
+        tool_additional_instruction: str = None  # [新增參數] 允許外部注入特定的提醒
 ) -> str:
     """
-    [統一入口] 支援多種 LLM Provider
-    Provider: 'openai', 'groq', 'google', 'ollama', 'mistral', 'deepseek'
+    [統一入口] 支援多種 LLM Provider 並整合 Tool Use 迴圈。
     """
     provider = provider.lower()
 
-    # --- Case 1: Google Gemini ---
     if provider in ["google", "gemini"]:
         if model.startswith("gpt"):
-            model = "gemini-2.5-flash"
-        return call_google_gemini(system_prompt, user_prompt, model, temperature, max_tokens=max_tokens)
+            model = "gemini-2.5-flash-preview-09-2025"
+        try:
+            from src.utils.llm_clients import call_google_gemini
+            return call_google_gemini(system_prompt, user_prompt, model, temperature, max_tokens=max_tokens)
+        except ImportError:
+            return "Error: call_google_gemini not found."
 
-    # --- Case 2: Ollama (Local) ---
     if provider == "ollama":
-        return call_ollama(system_prompt, user_prompt, model, temperature, num_ctx=8192)
+        try:
+            from src.utils.llm_clients import call_ollama
+            return call_ollama(system_prompt, user_prompt, model, temperature, num_ctx=8192)
+        except ImportError:
+            return "Error: call_ollama not found."
 
-    # --- Case 3: OpenAI Compatible APIs (OpenAI, Groq, Mistral, DeepSeek) ---
     openai_config = get_client_config(provider)
     if not openai_config:
         return f"Error: 不支援的 Provider '{provider}'"
@@ -183,28 +215,88 @@ def call_llm(
     api_key = openai_config.get("api_key")
     base_url = openai_config.get("base_url")
 
-    if not api_key:
-        return f"Error: 請在 .env 設定 {provider.upper()}_API_KEY"
-
     try:
-        # 初始化 OpenAI Client
         client = openai.OpenAI(api_key=api_key, base_url=base_url)
 
-        response = client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
-            temperature=temperature,
-            timeout=600,  # 強制設定 600秒 超時
-            max_tokens=max_tokens  # 強制設定最大 Token 數
-        )
-        return response.choices[0].message.content
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
 
-    except KeyError as e:
-        print(f"[LLM Config Error] Missing key: {e}")
-        return f"Configuration Error: Missing key {str(e)}"
+        # Tool Loop: 最多允許 5 次往返
+        for loop_index in range(5):
+            kwargs = {
+                "model": model,
+                "messages": messages,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "timeout": 600
+            }
+
+            if tools:
+                kwargs["tools"] = tools
+                kwargs["tool_choice"] = "auto"
+
+            response = client.chat.completions.create(**kwargs)
+            assistant_message = response.choices[0].message
+
+            # 1. 檢查是否有工具呼叫
+            if not assistant_message.tool_calls:
+                return assistant_message.content if assistant_message.content else ""
+
+            # 2. 處理工具呼叫
+            tool_calls_list = []
+            for tc in assistant_message.tool_calls:
+                tool_calls_list.append({
+                    "id": tc.id,
+                    "type": "function",
+                    "function": {
+                        "name": tc.function.name,
+                        "arguments": tc.function.arguments
+                    }
+                })
+
+            messages.append({
+                "role": "assistant",
+                "content": assistant_message.content or "",
+                "tool_calls": tool_calls_list
+            })
+
+            # 3. 執行所有工具
+            for tc in tool_calls_list:
+                function_name = tc["function"]["name"]
+                try:
+                    function_args = json.loads(tc["function"]["arguments"])
+                except json.JSONDecodeError:
+                    function_args = {}
+
+                print(f"🛠️ [Tool Call] 執行工具: {function_name} | 參數: {function_args}")
+                observation = execute_tool(function_name, function_args, rag_instance=rag_instance)
+                print(f"   -> Result: {observation[:200]}..." if observation else "   -> Result: (Empty)")
+
+                messages.append({
+                    "tool_call_id": tc["id"],
+                    "role": "tool",
+                    "name": function_name,
+                    "content": observation
+                })
+
+            # [Nudge Logic] 使用傳入的參數，如果沒傳則使用通用提醒
+            default_instruction = (
+                "Tool outputs provided above. "
+                "Please generate the code now based on these findings."
+            )
+
+            # 優先使用外部傳入的指令，否則使用預設
+            final_instruction = tool_additional_instruction if tool_additional_instruction else default_instruction
+
+            messages.append({
+                "role": "user",
+                "content": final_instruction
+            })
+
     except Exception as e:
         print(f"[LLM Call Error] Provider: {provider}, Error: {e}")
         return f"LLM Call Error ({provider}): {str(e)}"
+
+    return "Error: Tool loop exceeded limit."
