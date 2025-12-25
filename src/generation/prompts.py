@@ -13,54 +13,42 @@ Example Output:
 }
 """
 
-# Programmer (黃金範本)
+# Programmer (黃金範本 - 包含開始畫面與狀態管理)
 PROGRAMMER_PROMPT_TEMPLATE = """
 You are an expert Pygame Developer.
 Task: Write the complete 'main.py' based on the Design and Assets.
 
 【CRITICAL RULES】:
-1. **Visuals**: Use `pygame.draw.rect` or `pygame.draw.circle` based on the Asset JSON.
-2. **No Images**: DO NOT load external images (`pygame.image.load`).
-3. **Positioning**: Initialize assets at logical, non-overlapping positions. Ensure they are within screen bounds.
-4. **Game Loop**: Handle `pygame.QUIT` event. Use `clock.tick(60)`.
-5. **Format**: Wrap the code in ```python ... ``` block.
+1. **Visuals**: Use `pygame.draw.rect` or `pygame.draw.circle`. NO `pygame.image.load`.
+2. **Game Loop**: Handle `pygame.QUIT`. Use `clock.tick(60)`.
+3. **Format**: Wrap the code in ```python ... ``` block.
 
-6. **Sprite Update Safety (CRITICAL)**:
-   - When using `all_sprites.update()`, Pygame passes arguments to ALL sprites.
-   - **Requirement**: Define `update(self, *args)` for ALL Sprite classes, even if they don't use arguments.
-   - Example: `def update(self, *args): ...` prevents `TypeError` crashes.
+4. **Sprite Update Safety**:
+   - Define `update(self, *args)` for ALL Sprites to prevent TypeError.
 
-7. **Physics Strategy**:
-   - **Scenario A: Simple Arcade (Platformer, Shooter)**: 
-     - DO NOT use external physics libraries.
-     - Implement custom physics: `velocity_x`, `velocity_y`, `gravity`.
-     - Collision: `pygame.sprite.spritecollide`.
-   - **Scenario B: Complex Rigid Body (Pool, Angry Birds, Stacking)**:
-     - You MAY use `pymunk`.
-     - Setup: `import pymunk`, `self.space = pymunk.Space()`.
-     - **Coordinates**: Pymunk (Bottom-Left) <-> Pygame (Top-Left). You MUST convert y-coordinates when drawing.
-     - Update: `self.space.step(1/60.0)`.
+5. **Mouse Dragging Logic (CRITICAL for Pool/Slingshot)**:
+   - **Interaction Type**: 
+     - **Global Drag (Recommended)**: Player can click anywhere to aim. `MOUSEBUTTONDOWN` sets `aiming=True` regardless of cursor position.
+   - **Logic**:
+     - `MOUSEBUTTONDOWN`: `self.aiming = True`, `self.start_pos = event.pos`.
+     - `MOUSEBUTTONUP`: if `aiming`: calculate vector `(start_pos - end_pos)`, apply force, reset `aiming`.
+   - **Visuals**: Draw an aiming line when `aiming` is True.
 
-8. **Control Logic & Input Handling**:
-   - **Analyze the GDD** to decide the best control scheme.
-   - **WASD/Arrows**: Use `pygame.key.get_pressed()` for smooth movement.
-   - **Mouse Dragging (For Pool/Slingshot Games)**:
-     - **Interaction Type**: 
-        - **Global Drag (Recommended)**: Player can click anywhere to aim. `MOUSEBUTTONDOWN` sets `aiming=True` regardless of cursor position.
-        - **Object Drag**: Player must click the ball. Check `if self.rect.collidepoint(event.pos)`.
-     - **State**: Use `self.aiming = False` and `self.start_pos`.
-     - **Logic**:
-        - `MOUSEBUTTONDOWN`: `self.aiming = True`, `self.start_pos = event.pos`.
-        - `MOUSEBUTTONUP`: if `aiming`: calculate vector `(start_pos - end_pos)`, apply force, reset `aiming`.
-     - **Visuals**: Draw an aiming line when `aiming` is True.
+6. **Physics Implementation**:
+   - **Move**: `self.rect.x += self.velocity.x` AND `self.rect.y += self.velocity.y` (use float vectors for precision).
+   - **Friction**: `self.velocity *= 0.98`.
+   - **Bounce**: Invert velocity on wall collision.
 
-9. **Robustness**:
-   - **Zero Division**: Check `if vec.length() > 0` before normalizing.
-   - **Boundaries**: Keep objects inside the screen.
-
-10. **Token Efficiency**: 
-   - Write **MINIMAL comments**. Only comment complex logic.
-   - Do NOT add docstrings for every function.
+7. **Game Flow & Start Screen (MANDATORY)**:
+   - **State Machine**: The game MUST have states: `"START"`, `"PLAYING"`, `"GAME_OVER"`.
+   - **Start Screen**:
+     - Start the game in `"START"` state.
+     - Display the **Game Title** (Large Font).
+     - Display **Instructions** based on GDD (e.g., "Press WASD to Move", "Drag Mouse to Shoot").
+     - **Transition**: Pressing ANY key or clicking mouse switches state to `"PLAYING"`.
+   - **Game Over Screen**:
+     - When player loses/wins, switch to `"GAME_OVER"`.
+     - Display "Game Over" and "Press R to Restart".
 
 【CODE STRUCTURE TEMPLATE】:
 ```python
@@ -68,27 +56,23 @@ import pygame
 import sys
 import random
 import math
-# import pymunk # Only if needed
 
-# Config & Colors (From JSON)
 WIDTH, HEIGHT = 800, 600
 FPS = 60
-# ... Define Colors variables here ...
+# ... Colors ...
 
-# Classes
 class Player(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
-        # self.image = ...
-        # self.rect = ...
-        # self.velocity_x = 0
-        # self.velocity_y = 0
+        # ...
+    def update(self, *args):
+        # ...
 
-    def update(self, *args): # MUST accept *args to prevent crash
-        # Implement Physics & Movement here
-        pass
-
-# ... Other classes ...
+def draw_text(screen, text, size, color, x, y):
+    font = pygame.font.Font(None, size)
+    text_surface = font.render(text, True, color)
+    text_rect = text_surface.get_rect(center=(x, y))
+    screen.blit(text_surface, text_rect)
 
 def main():
     pygame.init()
@@ -96,8 +80,11 @@ def main():
     pygame.display.set_caption("Auto Generated Game")
     clock = pygame.time.Clock()
 
-    # Sprite Groups
+    # Game State: "START", "PLAYING", "GAME_OVER"
+    game_state = "START"
+
     all_sprites = pygame.sprite.Group()
+    # Init sprites...
 
     running = True
     while running:
@@ -105,18 +92,39 @@ def main():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-            # Handle Inputs...
 
-        # 2. Update
-        # Safe update call (passing *args is handled by class definition)
-        all_sprites.update()
-        # if using pymunk: space.step(1/FPS)
+            if game_state == "START":
+                if event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN:
+                    game_state = "PLAYING"
 
-        # 3. Draw
+            elif game_state == "PLAYING":
+                # Handle Game Inputs (Jump, Shoot, Drag)
+                pass
+
+            elif game_state == "GAME_OVER":
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_r:
+                    # Reset Game Logic
+                    game_state = "START"
+                    # Reset sprites...
+
+        # 2. Update & Draw
         screen.fill((0,0,0))
-        all_sprites.draw(screen)
-        pygame.display.flip()
 
+        if game_state == "START":
+            draw_text(screen, "GAME TITLE", 64, (255, 255, 255), WIDTH//2, HEIGHT//2 - 50)
+            draw_text(screen, "Press Any Key to Start", 32, (200, 200, 200), WIDTH//2, HEIGHT//2 + 20)
+            # Draw specific controls from GDD (e.g., "WASD to Move")
+
+        elif game_state == "PLAYING":
+            all_sprites.update()
+            all_sprites.draw(screen)
+            # Draw UI (Score, etc.)
+
+        elif game_state == "GAME_OVER":
+            draw_text(screen, "GAME OVER", 64, (255, 0, 0), WIDTH//2, HEIGHT//2)
+            draw_text(screen, "Press R to Restart", 32, (255, 255, 255), WIDTH//2, HEIGHT//2 + 50)
+
+        pygame.display.flip()
         clock.tick(FPS)
 
     pygame.quit()
@@ -127,7 +135,7 @@ if __name__ == "__main__":
 ```
 """
 
-# [NEW] Fuzzer Script Generator Prompt
+# Fuzzer Script Generator Prompt (升級版：強力拖曳)
 FUZZER_GENERATION_PROMPT = """
 You are a QA Automation Engineer specializing in Pygame.
 Task: Write a "Monkey Bot" script snippet to stress-test the game described in the GDD.

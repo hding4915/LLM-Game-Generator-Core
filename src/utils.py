@@ -1,10 +1,14 @@
 import openai
+import requests
 from config import config
+import os
+
 
 def get_client_config(provider: str) -> dict | None:
     """
     根據 Provider 回傳對應的 Client 設定 (api_key, base_url)
-    支援 OpenAI 相容介面的服務 (Groq, Ollama, Mistral)
+    支援 OpenAI 相容介面的服務 (Groq, Mistral, DeepSeek)
+    注意：Ollama 已獨立處理，不在此函式中
     """
     provider = provider.lower()
 
@@ -17,11 +21,6 @@ def get_client_config(provider: str) -> dict | None:
         return {
             "api_key": config.GROQ_API_KEY,
             "base_url": "https://api.groq.com/openai/v1"
-        }
-    elif provider == "ollama":
-        return {
-            "api_key": config.OLLAMA_API_KEY,
-            "base_url": config.OLLAMA_BASE_URL
         }
     elif provider == "mistral":
         return {
@@ -36,8 +35,13 @@ def get_client_config(provider: str) -> dict | None:
     return None
 
 
-def call_google_gemini(system_prompt: str, user_prompt: str,
-                       model: str, temperature: float) -> str:
+def call_google_gemini(
+        system_prompt: str,
+        user_prompt: str,
+        model: str,
+        temperature: float,
+        max_tokens: int = 8192
+) -> str:
     """
     處理 Google Gemini 的特殊邏輯 (需安裝 google-generativeai)
     """
@@ -56,7 +60,7 @@ def call_google_gemini(system_prompt: str, user_prompt: str,
         generation_config: dict = {
             "temperature": temperature,
             "top_p": 0.95,
-            "max_output_tokens": 8192,
+            "max_output_tokens": max_tokens,
             "response_mime_type": "text/plain",
         }
 
@@ -73,30 +77,108 @@ def call_google_gemini(system_prompt: str, user_prompt: str,
         return f"Gemini API Error: {str(e)}"
 
 
-def call_llm(system_prompt: str, user_prompt: str, provider: str ="openai",
-             model: str = "gpt-4o-mini", temperature: float = 0.7) -> str:
+def call_ollama(
+        system_prompt: str,
+        user_prompt: str,
+        model: str,
+        temperature: float,
+        num_ctx: int = 4096
+) -> str:
+
+    print(f"Run ollama (Native API): {model}")
+
+    base_url = config.OLLAMA_BASE_URL
+    if not base_url:
+        base_url = "http://localhost:11434"
+
+    # 清理 URL，確保指向 /api/chat
+    api_url = base_url.rstrip("/")
+    # 如果原本設定包含 /v1 (為了相容 OpenAI)，要把它拿掉改成原生路徑
+    if api_url.endswith("/v1"):
+        api_url = api_url[:-3]
+    api_url = f"{api_url}/api/chat"
+
+    # 設定 Request Body
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ],
+        "stream": False,
+        "options": {
+            "num_ctx": num_ctx,
+            "temperature": temperature
+        }
+    }
+
+    headers = {
+        "Content-Type": "application/json"
+    }
+
+    if config.OLLAMA_API_KEY:
+        headers["Authorization"] = f"Bearer {config.OLLAMA_API_KEY}"
+
+    response = ""
+
+
+    try:
+        response = requests.post(
+            api_url,
+            json=payload,
+            headers=headers,  # 帶上 headers
+            timeout=300
+        )
+
+        # 檢查是否有 401 (Unauthorized) 或 403 (Forbidden) 等錯誤
+        if response.status_code == 401:
+            return "Ollama Error: 401 Unauthorized. 請檢查 API Key 是否正確。"
+
+        response.raise_for_status()
+
+        result = response.json()
+        return result["message"]["content"]
+
+    except requests.exceptions.RequestException as e:
+        print(f"[Ollama Error] Connection failed: {e}")
+        return f"Ollama Error: {str(e)}"
+    except KeyError:
+        return f"Ollama Error: Unexpected response format. {response.text}"
+
+
+def call_llm(
+        system_prompt: str,
+        user_prompt: str,
+        provider: str = "openai",
+        model: str = "gpt-4o-mini",
+        temperature: float = 0.7,
+        max_tokens: int = 8192
+) -> str:
     """
     [統一入口] 支援多種 LLM Provider
-    Provider: 'openai', 'groq', 'google', 'ollama', 'mistral'
+    Provider: 'openai', 'groq', 'google', 'ollama', 'mistral', 'deepseek'
     """
     provider = provider.lower()
 
-    # --- Google Gemini ---
+    # --- Case 1: Google Gemini ---
     if provider in ["google", "gemini"]:
-        # 如果使用者傳入的是 OpenAI 的型號名稱，自動切換成 Gemini 預設型號
         if model.startswith("gpt"):
             model = "gemini-2.5-flash"
-        return call_google_gemini(system_prompt, user_prompt, model, temperature)
+        return call_google_gemini(system_prompt, user_prompt, model, temperature, max_tokens=max_tokens)
 
+    # --- Case 2: Ollama (Local) ---
+    if provider == "ollama":
+        return call_ollama(system_prompt, user_prompt, model, temperature, num_ctx=8192)
+
+    # --- Case 3: OpenAI Compatible APIs (OpenAI, Groq, Mistral, DeepSeek) ---
     openai_config = get_client_config(provider)
-    if not openai_config: return f"Error: 不支援的 Provider '{provider}'"
+    if not openai_config:
+        return f"Error: 不支援的 Provider '{provider}'"
 
-    # [FIX] 使用 .get() 避免 KeyError: 'key' 或 'api_key'
     api_key = openai_config.get("api_key")
     base_url = openai_config.get("base_url")
 
-    # 檢查 Key 是否存在 (Ollama 除外)
-    if not api_key and provider != "ollama":
+    if not api_key:
         return f"Error: 請在 .env 設定 {provider.upper()}_API_KEY"
 
     try:
@@ -110,13 +192,14 @@ def call_llm(system_prompt: str, user_prompt: str, provider: str ="openai",
                 {"role": "user", "content": user_prompt}
             ],
             temperature=temperature,
-            timeout=600,  # [FIX] 強制設定 600秒 超時
-            max_tokens=8192  # [FIX] 強制設定最大 Token 數，避免 DeepSeek 截斷
+            timeout=600,  # 強制設定 600秒 超時
+            max_tokens=max_tokens  # 強制設定最大 Token 數
         )
         return response.choices[0].message.content
+
     except KeyError as e:
-        print(f"[LLM Config Error] Missing key: {e}")  # [FIX] 加入錯誤列印，方便除錯
+        print(f"[LLM Config Error] Missing key: {e}")
         return f"Configuration Error: Missing key {str(e)}"
     except Exception as e:
-        print(f"[LLM Call Error] Provider: {provider}, Error: {e}")  # [FIX] 加入錯誤列印，方便除錯
+        print(f"[LLM Call Error] Provider: {provider}, Error: {e}")
         return f"LLM Call Error ({provider}): {str(e)}"
