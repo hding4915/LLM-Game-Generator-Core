@@ -2,9 +2,10 @@ import chromadb
 import hashlib
 import requests
 from chromadb import QueryResult, EmbeddingFunction, Documents, Embeddings
-from chromadb.api import DefaultEmbeddingFunction
+from chromadb.config import Settings
 from chromadb.utils import embedding_functions
 from config import Config
+from dataclasses import dataclass
 
 
 class RemoteOllamaAuthEF(EmbeddingFunction):
@@ -41,43 +42,62 @@ class RemoteOllamaAuthEF(EmbeddingFunction):
         return embeddings
 
 
+@dataclass
 class RagConfig:
-    tenant: str = Config.CHROMA_TENANT
-    database: str = Config.CHROMA_DATABASE
-    collection_name: str = Config.CHROMA_COLLECTION_NAME
-    provider: str = Config.LLM_EMBEDDING_PROVIDER
-    base_url: str = Config.LLM_EMBEDDING_SERVER_ADDRESS
-    base_port: str = Config.LLM_EMBEDDING_SERVER_PORT
-    model_type: str = Config.LLM_EMBEDDING_MODEL_TYPE
-    embedding_token: str = Config.LLM_EMBEDDING_CLIENT_TOKEN
-    chroma_token: str = Config.CHROMA_TOKEN
+    tenant: str = getattr(Config, 'CHROMA_TENANT', 'default_tenant')
+    database: str = getattr(Config, 'CHROMA_DATABASE', 'default_database')
+    collection_name: str = getattr(Config, 'CHROMA_COLLECTION_NAME', 'my_collection')
+
+    provider: str = getattr(Config, 'LLM_EMBEDDING_PROVIDER', 'ollama')
+    base_url: str = getattr(Config, 'LLM_EMBEDDING_SERVER_ADDRESS', 'http://localhost')
+    base_port: str = getattr(Config, 'LLM_EMBEDDING_SERVER_PORT', '11434')
+    model_type: str = getattr(Config, 'LLM_EMBEDDING_MODEL_TYPE', 'llama3')
+    embedding_token: str = getattr(Config, 'LLM_EMBEDDING_CLIENT_TOKEN', None)
+
+    # --- Cloud mode ---
+    chroma_token: str = getattr(Config, 'CHROMA_TOKEN', None)
+
+    # client_type: 'cloud' or 'http'
+    client_type: str = getattr(Config, 'CHROMA_CLIENT_TYPE', 'http')
+
+    # --- Http mode ---
+    host: str = getattr(Config, 'CHROMA_HOST', 'localhost')
+    port: int = getattr(Config, 'CHROMA_PORT', 8000)
+    ssl: bool = getattr(Config, 'CHROMA_SSL', False)
+
+    # [新增] SSL 驗證設定
+    # 如果是自簽憑證且不想報錯，設為 False
+    # 如果有特定的 CA 檔案，設為檔案路徑字串
+    ssl_verify: bool | str = getattr(Config, 'CHROMA_SSL_VERIFY', True)
+
+    # [補充] 如果 Server 有設密碼 (X-Chroma-Token 或 Authorization)
+    chroma_server_auth_credentials: str = getattr(Config, 'CHROMA_SERVER_AUTH_CREDENTIALS', None)
+    chroma_server_auth_provider: str = getattr(Config, 'CHROMA_SERVER_AUTH_PROVIDER', None)
+
+    # [新增] Cloudflare Access 設定
+    cf_client_id: str = getattr(Config, 'CF_ACCESS_CLIENT_ID', None)
+    cf_client_secret: str = getattr(Config, 'CF_ACCESS_CLIENT_SECRET', None)
 
 
 class RagService:
-    _instance = None  # 類別層級的變數
-    _initialized = False  # 防止重複執行 __init__
-
-    def __new__(cls, *args, **kwargs):
-        if cls._instance is None:
-            cls._instance = super(RagService, cls).__new__(cls)
-        return cls._instance
-
     def __init__(self, rag_config: RagConfig = None):
         if rag_config is None:
             rag_config = RagConfig()
 
-        self.client = chromadb.CloudClient(
-            api_key=rag_config.chroma_token,
-            tenant=rag_config.tenant,
-            database=rag_config.database
-        )
+        self.client = self._get_client(rag_config)
 
-        self.embedding_function = self._get_embedding_function(rag_config.provider, rag_config.base_url, rag_config.base_port, rag_config.model_type, rag_config.embedding_token)
+        self.embedding_function = self._get_embedding_function(
+            rag_config.provider,
+            rag_config.base_url,
+            rag_config.base_port,
+            rag_config.model_type,
+            rag_config.embedding_token
+        )
 
         actual_collection_name = f"{rag_config.collection_name}_{rag_config.model_type}"
 
-        print(f"正在使用模型: {rag_config.model_type}")
-        print(f"資料表名稱: {actual_collection_name}")
+        print(f"Now use model: {rag_config.model_type}")
+        print(f"Data collection name: {actual_collection_name}")
 
         self.collection = self.client.get_or_create_collection(
             name=actual_collection_name,
@@ -86,7 +106,50 @@ class RagService:
         )
 
 
-    def _get_embedding_function(self, provider: str, base_url: str, base_port: str, model_type: str, token: str) -> RemoteOllamaAuthEF | DefaultEmbeddingFunction:
+    def _get_client(self, config: RagConfig):
+        mode = config.client_type.lower()
+
+        if mode == 'cloud':
+            print("Connecting to Chroma Cloud...")
+            return chromadb.CloudClient(
+                api_key=config.chroma_token,
+                tenant=config.tenant,
+                database=config.database
+            )
+
+        elif mode == 'http':
+            chroma_settings = Settings()
+
+            request_headers = {
+                "Content-Type": "application/json"
+            }
+
+            if config.cf_client_id and config.cf_client_secret:
+                print("偵測到 Cloudflare Service Token，已加入 Headers")
+                request_headers["CF-Access-Client-Id"] = config.cf_client_id
+                request_headers["CF-Access-Client-Secret"] = config.cf_client_secret
+
+            if config.ssl:
+                chroma_settings.chroma_server_ssl_verify = config.ssl_verify
+
+            # [選用] 如果你需要 Token/Basic Auth 認證
+            if config.chroma_server_auth_credentials:
+                chroma_settings.chroma_client_auth_provider = config.chroma_server_auth_provider or "chromadb.auth.token_auth.TokenAuthClientProvider"
+                chroma_settings.chroma_client_auth_credentials = config.chroma_server_auth_credentials
+
+            return chromadb.HttpClient(
+                host=config.host,
+                port=config.port,
+                ssl=config.ssl,
+                headers=request_headers,
+                settings=chroma_settings,
+                tenant=config.tenant
+            )
+
+        else:
+            raise ValueError(f"Unsupported Chroma client_type: {mode}。Please use 'cloud' or 'http'")
+
+    def _get_embedding_function(self, provider: str, base_url: str, base_port: str, model_type: str, token: str):
         model_type = model_type.lower()
 
         if provider == "ollama":
@@ -106,18 +169,34 @@ class RagService:
     def hash_content(self, content):
         return hashlib.sha256(content.encode('utf-8')).hexdigest()
 
-    def insert(self, content: str, metadata: dict) -> str:
+    def insert(self, content: str, metadata: dict = None) -> str:
         new_id = self.hash_content(content)
-        self.collection.upsert(
-            documents=[content],
-            metadatas=[metadata],
-            ids=[new_id],
-        )
+        if metadata is None:
+            self.collection.upsert(
+                documents=[content],
+                ids=[new_id],
+            )
+        else:
+            self.collection.upsert(
+                documents=[content],
+                metadatas=[metadata],
+                ids=[new_id],
+            )
         return new_id
 
-    def query(self, question: str, filters: dict = None, n_results: int = 3) -> QueryResult:
+    def query(self, question: str, filters: dict = None, n_results: int = 3):
         return self.collection.query(
             query_texts=[question],
             n_results=n_results,
             where=filters
         )
+
+
+
+if __name__ == "__main__":
+    rag_config = RagConfig(collection_name="menu1")
+    rag = RagService(rag_config=rag_config)
+
+    # rag.insert("1234")
+    result = rag.query("1000")
+    print(result)
