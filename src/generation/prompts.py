@@ -192,20 +192,3 @@ if random.random() < 0.05:
 
 Now, generate the test logic for this specific game:
 """
-
-
-MODULAR_PROMPT_TEMPLATE = """You are a Python Developer working in a structured, modular project environment.
-Your task is to implement EXACTLY ONE file based on the specifications.
-
-CRITICAL RULES:
-1. **EXTERNAL LIBRARIES**: If you use external libraries (e.g. `pygame`, `random`, `sys`, `math`), you MUST import them at the top of the file.
-2. **DO NOT Re-implement Dependencies**: If a class or function is listed as a dependency, you MUST import it.
-3. **Use Relative Imports**: Assume all files are in the same directory. Use `from module_name import ClassName`.
-4. **STRICT IMPORT CHECK (Internal Modules)**: 
-   - You have been provided with a list of **EXACT EXPORTED SYMBOLS** for each internal dependency.
-   - **YOU MUST ONLY IMPORT SYMBOLS LISTED IN THAT ALLOWLIST.**
-   - If a function (e.g. `initialize_pygame`) or constant (e.g. `FPS`) is NOT in the allowlist, **DO NOT IMPORT IT**. 
-   - **FALLBACK**: If you need a missing symbol, define it LOCALLY in this file.
-5. **Focus on Responsibility**: Only implement the logic described for THIS specific file.
-6. **Main File Logic**: If writing `main.py`, your job is to coordinate imported modules.
-"""

@@ -94,41 +94,17 @@ class RagService:
             rag_config.embedding_token
         )
 
-        self.actual_collection_name = f"{rag_config.collection_name}_{rag_config.model_type}"
+        actual_collection_name = f"{rag_config.collection_name}_{rag_config.model_type}"
 
         print(f"Now use model: {rag_config.model_type}")
-        print(f"Data collection name: {self.actual_collection_name}")
+        print(f"Data collection name: {actual_collection_name}")
 
         self.collection = self.client.get_or_create_collection(
-            name=self.actual_collection_name,
+            name=actual_collection_name,
             embedding_function=self.embedding_function,
             metadata={"hnsw:space": "cosine"}
         )
 
-    def reset(self):
-        """
-        刪除目前的 Collection 並重新建立一個空的。
-        用於每次生成新專案時清除舊記憶。
-        """
-        try:
-            print(f"[RAG] Resetting collection: {self.actual_collection_name}...")
-            self.client.delete_collection(self.actual_collection_name)
-
-            # 重新建立空的 Collection
-            self.collection = self.client.create_collection(
-                name=self.actual_collection_name,
-                embedding_function=self.embedding_function,
-                metadata={"hnsw:space": "cosine"}
-            )
-            print("[RAG] Collection reset successfully.")
-        except Exception as e:
-            print(f"[RAG] Warning during reset (might be empty already): {e}")
-            # 如果刪除失敗（例如不存在），確保還是要 get_or_create
-            self.collection = self.client.get_or_create_collection(
-                name=self.actual_collection_name,
-                embedding_function=self.embedding_function,
-                metadata={"hnsw:space": "cosine"}
-            )
 
     def _get_client(self, config: RagConfig):
         mode = config.client_type.lower()

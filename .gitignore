@@ -1,10 +1,6 @@
 **/*.env
 
 
-# flask
-**/flask_session/
-
-
 # ide
 .idea
 .vscode
