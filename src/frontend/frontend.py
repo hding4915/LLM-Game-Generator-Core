@@ -47,11 +47,11 @@ def index():
                 # --- Phase 1: Design ---
                 session['gdd_result_global'] = run_design_phase(user_input, provider, model_name)
                 # --- Phase 2: Core ---
-                session['game_folder_path_global'] = run_core_phase(session.get('gdd_result_global'), provider, model_name)
+                session['game_main_path_global'] = run_core_phase(session.get('gdd_result_global'), provider, model_name)
 
                 print("[Member 2] Generation complete")
 
-                if session.get('game_folder_path_global'):
+                if session.get('game_main_path_global'):
                     session['auto_start_fix'] = True
                     flash("核心代碼生成完畢，準備開始驗證...", "info")
                 else:
@@ -59,7 +59,7 @@ def index():
 
 
             elif action == "launch_game":
-                path = session.get('game_folder_path_global')
+                path = session.get('game_main_path_global')
                 if path:
                     msg = launch_game(path)
                     flash(msg, "info")
@@ -73,7 +73,7 @@ def index():
         return redirect(url_for("index"))
     # --- Get ---
     file_content = None
-    path = session.get('game_folder_path_global')
+    path = session.get('game_main_path_global')
     if path and os.path.exists(path):
         with open(path, "r", encoding="utf-8") as f:
             file_content = f.read()
@@ -81,7 +81,7 @@ def index():
 
     return render_template("index.html",
                            gdd_result=session.get('gdd_result_global'),
-                           game_file_path=session.get('game_folder_path_global'),
+                           game_file_path=session.get('game_main_path_global'),
                            file_content=file_content,
                            providers=PROVIDERS,
                            auto_start_fix=auto_start_fix
@@ -94,12 +94,12 @@ def fix_stream():
     run_fix_loop is a generator function, which contains the message given by "yield".
     When the frontend received the message format sent by run_fix_loop, it will show the message automatically.
     """
-    if not session.get('game_folder_path_global') or not session.get('gdd_result_global'):
+    if not session.get('game_main_path_global') or not session.get('gdd_result_global'):
         def error_gen():
             yield "data: 錯誤：尚未生成遊戲，無法開始驗證。\n\n"
         return Response(error_gen(), mimetype='text/event-stream')
     gdd = session.get('gdd_result_global')
-    path = session.get('game_folder_path_global')
+    path = session.get('game_main_path_global')
     provider = session.get('provider')
     model_name = session.get('model_name')
     return Response(

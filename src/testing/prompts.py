@@ -32,50 +32,42 @@ Return the fixed code inside a ```python ... ``` block.
 
 # Logic Reviewer Prompt (Strict Mode)
 LOGIC_REVIEW_PROMPT = """
-You are a Senior Game Developer reviewing Pygame code.
-Analyze the following code for LOGIC ERRORS. Do NOT hallucinate checks that aren't there.
+Review the following game code for logical correctness:
 
-【CODE】:
+【Relevant Reference Code (from RAG)】
+{context}
+
+【Code to Review】
 {code}
 
-【CHECKLIST】:
-1. **Grid Safety (CRITICAL)**:
-   - Search for `grid[x][y].value` or `cell.attr`. 
-   - Is there an `if grid[x][y]:` or `if cell is not None:` check IMMEDIATELY before it?
-   - If NO check exists, you MUST report **FAIL**.
-   - Example: `grid[r][c].value` without check -> **FAIL**.
+Please check:
+1. Does it meet the GDD requirements?
+2. Is it consistent with the reference code?
+3. Are there any logical flaws or errors?
 
-2. **Physics/Update**:
-   - Is `self.rect.center` updated by `self.pos`?
-   - Is `pygame.display.flip()` called?
-   - Is the friction and the reflection reasonable?
-
-3. **Controls**:
-   - Are keys/mouse inputs handled?
-
-【OUTPUT】:
-If playable and SAFE, output: PASS
-If unsafe (missing None checks), output: FAIL: [Line number/Function] accesses NoneType without check.
+If the code passes all checks, respond with "PASS".
+Otherwise, explain the issues found.
 """
 
+
 # Logic Fixer Prompt
+# 在 src/testing/prompts.py 中
 LOGIC_FIXER_PROMPT = """
-You are a Python Game Developer.
-The code has logical issues (e.g., crashes on empty cells, objects not moving).
-【Error Messages】
-{error}
+Fix the logical errors in the following game code:
 
+【Relevant Reference Examples (from RAG)】
+{context}
 
-【CODE】:
+【Current Code with Errors】
 {code}
 
-【TASK】:
-1. **Fix Grid/NoneType Errors (Top Priority)**:
-   - Scan ALL grid access `grid[r][c].attr`.
-   - Wrap them in `if grid[r][c]: ...`.
-   - Fix loops where `None` cells might be accessed.
-2. **Fix Physics/Controls**: 
-   - Ensure `update()` updates position.
-   - Ensure Mouse Drag calculates vector correctly.
-3. Output the FULL corrected code in ```python ... ``` block.
+【Error Description】
+{error}
+
+Please:
+1. Analyze the error based on GDD requirements
+2. Reference the provided examples
+3. Provide the complete fixed code
+
+Return only the fixed code in a ```python code block.
 """
