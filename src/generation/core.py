@@ -6,7 +6,8 @@ from src.rag_service.rag import RagService, RagConfig
 import os
 import json
 import re
-import ast  # [New] 用於靜態分析程式碼結構
+import ast  # 用於靜態分析程式碼結構
+import uuid  # [New] 用於生成唯一的 run_id
 
 # 嘗試導入 Langchain 文字切分器，用於 RAG 預處理
 try:
@@ -16,10 +17,6 @@ try:
 except ImportError:
     HAS_LANGCHAIN = False
     print("[Warning] Langchain not found. RAG code splitting will be limited.")
-
-
-# [Update] MODULAR_PROMPT_TEMPLATE 更新
-# 加入 Rule 1: 強制要求 Import 外部庫 (pygame, random 等)
 
 
 def generate_code(
@@ -104,12 +101,15 @@ def generate_structural_code(
 
 def analyze_code_structure(code: str) -> dict:
     """
-    [New] 使用 AST 分析程式碼，提取實際存在的 Classes, Functions 和 Global Variables。
+    使用 AST 分析程式碼，提取實際存在的 Classes, Functions 和 Global Variables。
     這能確保我們只讓 LLM import 真正存在的符號。
     """
     symbols = {"classes": [], "functions": [], "variables": []}
     try:
-        tree = ast.parse(code)
+        # 確保解析前沒有 Markdown 標記 (防禦性檢查)
+        clean_code = re.sub(r'```python\s*|```\s*', '', code).strip()
+        tree = ast.parse(clean_code)
+
         for node in tree.body:
             if isinstance(node, ast.ClassDef):
                 symbols["classes"].append(node.name)
@@ -132,7 +132,7 @@ def generate_module_code(
         gdd_context: str,
         asset_json: str,
         rag_context: str = "",
-        dependency_symbols: dict = None,  # [New] 傳入依賴檔案的實際符號表
+        dependency_symbols: dict = None,
         provider: str = "openai",
         model: str = "gpt-4o-mini"
 ) -> str:
@@ -144,7 +144,7 @@ def generate_module_code(
     # 將依賴列表轉換為字串
     deps_str = ", ".join(dependencies) if dependencies else "None"
 
-    # [New] 建構 "允許 Import 的符號列表" 提示
+    # 建構 "允許 Import 的符號列表" 提示
     allowlist_str = ""
     if dependency_symbols:
         allowlist_str += "\n=== STRICT IMPORT ALLOWLIST (Verification Required) ===\n"
@@ -162,7 +162,7 @@ def generate_module_code(
                 allowlist_str += "  - (No exportable symbols detected. Do NOT import anything from this file.)\n"
         allowlist_str += "\nIf a symbol you need is NOT in this list, define it locally.\n=======================================================\n"
 
-    # [Update] 針對 config.py 的特殊強化指令
+    # 針對 config.py 的特殊強化指令
     special_instruction = ""
     if "config" in filename.lower():
         special_instruction = """
@@ -240,6 +240,10 @@ def run_core_phase(
     main_file_path = None
     output_dir = None
 
+    # [New] 生成唯一的 Run ID，用於資料夾命名和 RAG 隔離
+    run_id = str(uuid.uuid4())
+    print(f"[Member 2] Current Run ID: {run_id}")
+
     # [New] 專案符號表，用於存儲每個檔案生成的實際符號 (AST analysis results)
     project_symbol_table = {}
 
@@ -258,6 +262,7 @@ def run_core_phase(
             rag_service = RagService(rag_config=rag_config)
 
             # --- CLEAR RAG MEMORY ---
+            # 保留 reset 機制以防萬一，但依賴 run_id 做主要隔離
             rag_service.reset()
             # ------------------------
 
@@ -304,7 +309,8 @@ def run_core_phase(
                     query_text = f"Show me the class definitions, __init__ methods, ALL exported function names, and ALL global constants in: {', '.join(deps)}"
                     print(f"   -> Querying RAG for dependencies: {deps}...")
 
-                    results = rag_service.query(query_text, n_results=3)
+                    # [Update] 使用 run_id 過濾，只檢索本次生成的內容
+                    results = rag_service.query(query_text, filters={"run_id": run_id}, n_results=3)
 
                     if results and 'documents' in results and results['documents']:
                         retrieved_docs = results['documents'][0]
@@ -335,9 +341,12 @@ def run_core_phase(
 
                 if output_dir is None:
                     directory = "output"
-                    elenums = len(os.listdir(directory))
-                    output_dir = os.path.join(directory, f"game_gen{elenums}")
-                    saved_path = save_code_to_file(markdown_wrapped_code, filename=filename, output_dir=output_dir)  # Use wrapped
+                    # [Update] 使用 run_id 作為資料夾名稱
+                    output_dir = os.path.join(directory, run_id)
+                    print(f"[Member 2] Creating output directory: {output_dir}")
+
+                    saved_path = save_code_to_file(markdown_wrapped_code, filename=filename,
+                                                   output_dir=output_dir)  # Use wrapped
                     if saved_path:
                         output_dir = os.path.dirname(saved_path)
                     if 'main.py' in filename:
@@ -355,11 +364,14 @@ def run_core_phase(
                     try:
                         docs = text_splitter.create_documents([clean_code], metadatas=[{"filename": filename}])
                         for doc in docs:
+                            # [Update] 加入 run_id 到 metadata，確保資料隔離
+                            doc.metadata["run_id"] = run_id
                             rag_service.insert(doc.page_content, doc.metadata)
                     except Exception as e:
                         print(f"   [!] Error splitting/inserting code: {e}")
                 else:
-                    rag_service.insert(clean_code, {"filename": filename})
+                    # [Update] 加入 run_id 到 metadata
+                    rag_service.insert(clean_code, {"filename": filename, "run_id": run_id})
                 # --------------------------------
 
             if not main_file_path and output_dir:
@@ -378,4 +390,4 @@ def run_core_phase(
         output_dir = os.path.dirname(main_file_path)
         save_code_to_file(fuzzer_logic_code, output_dir=output_dir, filename="fuzz_logic.py")
 
-    return output_dir
+    return main_file_path
