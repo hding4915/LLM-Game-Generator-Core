@@ -1,7 +1,6 @@
 **/*.env
 
 
-# flask
 **/flask_session/
 
 

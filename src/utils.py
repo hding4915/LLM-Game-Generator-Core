@@ -32,6 +32,11 @@ def get_client_config(provider: str) -> dict | None:
             "api_key": config.DEEPSEEK_API_KEY,
             "base_url": "https://api.deepseek.com/v1"
         }
+    elif provider == "inception":
+        return {
+            "api_key": config.INCEPTION_API_KEY,
+            "base_url": "https://api.inceptionlabs.ai/v1"
+        }
     return None
 
 
