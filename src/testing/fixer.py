@@ -109,9 +109,12 @@ def run_fix(file_path: str, error_message: str, provider: str = "openai",
 
     output_dir = os.path.dirname(file_path)
     new_path = save_code_to_file(response, output_dir=output_dir, filename=os.path.basename(file_path))
+    file_name = os.path.basename(file_path)
 
     if new_path:
         logger.info(f"✅ {os.path.basename(file_path)} 修復成功。")
+        rag_service.delete_by_metadata({"filename": file_name, "run_id": run_id})
+        rag_service.insert_with_chunk(response, metadata={"filename": file_name, "run_id": run_id})
         return new_path, response
 
     logger.error(f"❌ {os.path.basename(file_path)} 存檔失敗。")
