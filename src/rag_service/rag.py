@@ -4,6 +4,8 @@ import requests
 from chromadb import QueryResult, EmbeddingFunction, Documents, Embeddings
 from chromadb.config import Settings
 from chromadb.utils import embedding_functions
+from langchain_text_splitters import RecursiveCharacterTextSplitter, Language
+
 from config import Config
 from dataclasses import dataclass
 
@@ -238,6 +240,21 @@ class RagService:
             )
         return new_id
 
+    def insert_with_chunk(self, content: str, metadata: dict = None):
+        text_splitter = RecursiveCharacterTextSplitter.from_language(
+            language=Language.PYTHON,
+            chunk_size=800,
+            chunk_overlap=100
+        )
+        try:
+            docs = text_splitter.create_documents([content], metadatas=[metadata])
+            for doc in docs:
+                self.insert(doc.page_content, doc.metadata)
+        except Exception as e:
+            print(f"   [!] Error splitting/inserting code: {e}")
+
+
+
     def query(self, question: str, filters: dict = None, n_results: int = 3):
         return self.collection.query(
             query_texts=[question],
@@ -251,15 +268,33 @@ if __name__ == "__main__":
     rag_config = RagConfig(collection_name="menu1")
     rag = RagService(rag_config=rag_config)
 
-    rag.insert("1231", metadata={"source": "main.py", "run_id": "asd12gfhjrthgsdfzxzc"})
-    rag.insert("1234", metadata={"source": "main.py", "run_id": "asdaqwr12ewqda"})
-    result = rag.query("1234")
+    from src.generation.prompts import PROGRAMMER_PROMPT_TEMPLATE
+    rag.insert_with_chunk(PROGRAMMER_PROMPT_TEMPLATE, metadata={"filename": "prompt.py", "run_id": "adad124ewffds"})
+
+    result = rag.query("program")
     print(result)
 
-    rag.delete_by_metadata({"source": "main.py", "run_id": "asd12gfhjrthgsdfzxzc"})
-    result = rag.query("1234")
+    rag.delete_by_metadata({"filename": "prompt.py", "run_id": "adad124ewffds"})
+    result = rag.query("program")
     print(result)
 
-    rag.delete_by_metadata({"source": "main.py", "run_id": "asdaqwr12ewqda"})
-    result = rag.query("1234")
+    rag.insert_with_chunk(PROGRAMMER_PROMPT_TEMPLATE, metadata={"filename": "prompt.py", "run_id": "adad124ewffds"})
+    result = rag.query("program")
     print(result)
+
+    rag.delete_by_metadata({"filename": "prompt.py", "run_id": "adad124ewffds"})
+    result = rag.query("program")
+    print(result)
+
+    # rag.insert("1231", metadata={"source": "main.py", "run_id": "asd12gfhjrthgsdfzxzc"})
+    # rag.insert("1234", metadata={"source": "main.py", "run_id": "asdaqwr12ewqda"})
+    # result = rag.query("1234")
+    # print(result)
+    #
+    # rag.delete_by_metadata({"source": "main.py", "run_id": "asd12gfhjrthgsdfzxzc"})
+    # result = rag.query("1234")
+    # print(result)
+    #
+    # rag.delete_by_metadata({"source": "main.py", "run_id": "asdaqwr12ewqda"})
+    # result = rag.query("1234")
+    # print(result)

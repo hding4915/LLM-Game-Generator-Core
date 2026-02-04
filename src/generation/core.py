@@ -338,8 +338,6 @@ def run_core_phase(
                     try:
                         docs = text_splitter.create_documents([clean_code], metadatas=[{"filename": filename, "run_id": run_id}])
                         for doc in docs:
-                            # [Update] 加入 run_id 到 metadata，確保資料隔離
-                            doc.metadata["run_id"] = run_id
                             rag_service.insert(doc.page_content, doc.metadata)
                     except Exception as e:
                         print(f"   [!] Error splitting/inserting code: {e}")
