@@ -133,13 +133,32 @@ class RagService:
     def delete_by_metadata(self, filter_dict: dict):
         """
         根據 metadata 刪除資料。
-        用法: rag.delete_by_metadata({"source": "main.py"})
+        自動處理多條件的 AND 邏輯。
         """
         print(f"Deleting documents with metadata: {filter_dict}")
+
+        # 1. 檢查 filter_dict 是否為空
+        if not filter_dict:
+            print("Filter is empty, skipping delete.")
+            return
+
+        # 2. 轉換邏輯：如果超過一個鍵值對，轉換為 ChromaDB 的 $and 語法
+        if len(filter_dict) > 1:
+            where_clause = {
+                "$and": [
+                    {k: v} for k, v in filter_dict.items()
+                ]
+            }
+        else:
+            # 只有一個條件時，直接使用
+            where_clause = filter_dict
+
         try:
-            self.collection.delete(where=filter_dict)
+            # 傳入轉換後的 where_clause
+            self.collection.delete(where=where_clause)
+            print("Delete executed.")
         except Exception as e:
-            print(f"Delete failed (maybe empty?): {e}")
+            print(f"Delete failed: {e}")
 
     def _get_client(self, config: RagConfig):
         mode = config.client_type.lower()
@@ -232,10 +251,15 @@ if __name__ == "__main__":
     rag_config = RagConfig(collection_name="menu1")
     rag = RagService(rag_config=rag_config)
 
-    rag.insert("1234", metadata={"source": "main.py"})
+    rag.insert("1231", metadata={"source": "main.py", "run_id": "asd12gfhjrthgsdfzxzc"})
+    rag.insert("1234", metadata={"source": "main.py", "run_id": "asdaqwr12ewqda"})
     result = rag.query("1234")
     print(result)
 
-    rag.delete_by_metadata({"source": "main.py"})
+    rag.delete_by_metadata({"source": "main.py", "run_id": "asd12gfhjrthgsdfzxzc"})
+    result = rag.query("1234")
+    print(result)
+
+    rag.delete_by_metadata({"source": "main.py", "run_id": "asdaqwr12ewqda"})
     result = rag.query("1234")
     print(result)

@@ -209,3 +209,33 @@ CRITICAL RULES:
 5. **Focus on Responsibility**: Only implement the logic described for THIS specific file.
 6. **Main File Logic**: If writing `main.py`, your job is to coordinate imported modules.
 """
+
+
+STRUCTURAL_PROMPT_TEMPLATE = """
+You are a Lead Software Architect. 
+Based on the Game Design Document (GDD) and Assets below, design a modular Python project structure.
+
+GDD:
+{gdd_context}
+
+ASSETS:
+{asset_json}
+
+RETURN ONLY A VALID JSON LIST. No markdown formatting, no extra text.
+The JSON should be a list of objects, where each object represents a file:
+[
+    {
+        "filename": "main.py",
+        "description": "Entry point. Initializes the game loop and handles events.",
+        "dependencies": ["utils.py", "game_logic.py", "config.py"],
+        "classes_functions": ["main()"]
+    },
+    {
+        "filename": "game_logic.py",
+        "description": "Contains the core Game class and logic.",
+        "dependencies": ["config.py"],
+        "classes_functions": ["Game"]
+    }
+]
+Ensure 'main.py' includes ALL necessary dependencies (e.g. game logic, config) to run the game.
+"""

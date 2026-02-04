@@ -1,5 +1,5 @@
 from src.utils import call_llm
-from src.generation.prompts import PROGRAMMER_PROMPT_TEMPLATE, FUZZER_GENERATION_PROMPT, MODULAR_PROMPT_TEMPLATE
+from src.generation.prompts import PROGRAMMER_PROMPT_TEMPLATE, FUZZER_GENERATION_PROMPT, MODULAR_PROMPT_TEMPLATE, STRUCTURAL_PROMPT_TEMPLATE
 from src.generation.asset_gen import generate_assets
 from src.generation.file_utils import save_code_to_file
 from src.rag_service.rag import RagService, RagConfig
@@ -51,34 +51,8 @@ def generate_structural_code(
     """
     print(f"[Member 2] Designing modular architecture using {model}...")
 
-    prompt = f"""
-    You are a Lead Software Architect. 
-    Based on the Game Design Document (GDD) and Assets below, design a modular Python project structure.
-
-    GDD:
-    {gdd_context}
-
-    ASSETS:
-    {asset_json}
-
-    RETURN ONLY A VALID JSON LIST. No markdown formatting, no extra text.
-    The JSON should be a list of objects, where each object represents a file:
-    [
-        {{
-            "filename": "main.py",
-            "description": "Entry point. Initializes the game loop and handles events.",
-            "dependencies": ["utils.py", "game_logic.py", "config.py"],
-            "classes_functions": ["main()"]
-        }},
-        {{
-            "filename": "game_logic.py",
-            "description": "Contains the core Game class and logic.",
-            "dependencies": ["config.py"],
-            "classes_functions": ["Game"]
-        }}
-    ]
-    Ensure 'main.py' includes ALL necessary dependencies (e.g. game logic, config) to run the game.
-    """
+    prompt = STRUCTURAL_PROMPT_TEMPLATE.replace("{gdd_context}", gdd_context)
+    prompt = prompt.replace("{asset_json}", asset_json)
 
     response = call_llm("You are a System Architect. Output only JSON.", prompt, provider=provider, model=model,
                         temperature=0.1)
