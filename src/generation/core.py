@@ -362,7 +362,7 @@ def run_core_phase(
                 # Use clean_code for RAG
                 if text_splitter and clean_code:
                     try:
-                        docs = text_splitter.create_documents([clean_code], metadatas=[{"filename": filename}])
+                        docs = text_splitter.create_documents([clean_code], metadatas=[{"filename": filename, "run_id": run_id}])
                         for doc in docs:
                             # [Update] 加入 run_id 到 metadata，確保資料隔離
                             doc.metadata["run_id"] = run_id

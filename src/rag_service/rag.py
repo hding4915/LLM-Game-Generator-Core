@@ -130,6 +130,17 @@ class RagService:
                 metadata={"hnsw:space": "cosine"}
             )
 
+    def delete_by_metadata(self, filter_dict: dict):
+        """
+        根據 metadata 刪除資料。
+        用法: rag.delete_by_metadata({"source": "main.py"})
+        """
+        print(f"Deleting documents with metadata: {filter_dict}")
+        try:
+            self.collection.delete(where=filter_dict)
+        except Exception as e:
+            print(f"Delete failed (maybe empty?): {e}")
+
     def _get_client(self, config: RagConfig):
         mode = config.client_type.lower()
 
@@ -221,6 +232,10 @@ if __name__ == "__main__":
     rag_config = RagConfig(collection_name="menu1")
     rag = RagService(rag_config=rag_config)
 
-    # rag.insert("1234")
-    result = rag.query("1000")
+    rag.insert("1234", metadata={"source": "main.py"})
+    result = rag.query("1234")
+    print(result)
+
+    rag.delete_by_metadata({"source": "main.py"})
+    result = rag.query("1234")
     print(result)
