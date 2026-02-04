@@ -1,5 +1,4 @@
 import os
-import ast
 import re
 import logging
 from typing import Optional, Generator
@@ -9,10 +8,12 @@ from src.testing.prompts import FIXER_PROMPT, LOGIC_REVIEW_PROMPT, LOGIC_FIXER_P
 from src.generation.file_utils import save_code_to_file
 from src.rag_service.rag import RagService, RagConfig
 from src.testing.fuzzer import run_fuzz_test
+from src.testing.static_code_analyzer import get_project_symbols, check_cross_file_calls, static_code_check
 from config import config
 
-logger = logging.getLogger("Member3-Fixer")
+logger = logging.getLogger("【Member3-Fixer】")
 logger.setLevel(getattr(logging, config.LOG_LEVEL, logging.DEBUG))
+logger.propagate = False
 
 if not logger.handlers:
     formatter = logging.Formatter('%(asctime)s - [%(name)s] - %(levelname)s - %(message)s')
@@ -25,24 +26,14 @@ if not logger.handlers:
     fh.setFormatter(formatter)
     logger.addHandler(fh)
 
-
-def static_code_check(file_path: str) -> tuple[bool, str]:
-    """使用 Python ast 模組檢查語法錯誤"""
-    try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            code = f.read()
-        ast.parse(code)
-        return True, "語法檢查通過 ✅"
-    except SyntaxError as e:
-        logger.error(f"檔案 {os.path.basename(file_path)} 語法錯誤: {e}")
-        return False, f"語法錯誤 ❌: {e}"
-    except Exception as e:
-        logger.exception(f"檢查檔案 {os.path.basename(file_path)} 時發生非預期錯誤")
-        return False, f"其他錯誤 ❌: {e}"
-
-
 def extract_rag_context(rag_service: RagService, query: str, run_id: str) -> str:
-    """修正 RAG 提取邏輯：確保拿的是 documents 內容而不是 dict keys"""
+    """
+    Get relevant code snippets from RAG service based on the query and run_id.
+    :param rag_service: the instance of RagService
+    :param query: the query string
+    :param run_id: the run_id to filter documents
+    :return: the concatenated relevant code snippets
+    """
     results = rag_service.query(question=query, filters={"run_id": run_id}, n_results=7)
 
     if results and 'documents' in results and results['documents']:
@@ -85,7 +76,16 @@ def game_logic_check_with_rag(file_path: str, provider: str = "openai",
 def run_fix(file_path: str, error_message: str, provider: str = "openai",
             model: str = "gpt-4o-mini", fix_type: str = "syntax", run_id: str = "",
             gdd: Optional[str] = "") -> tuple[str | None, str]:
-    """自動修補代碼邏輯"""
+    """
+    The main function to fix code based on error type (syntax or logic).
+    :param file_path: str: The path to the broken code file
+    :param error_message: str: The error message to guide the fix
+    :param provider: str: LLM provider
+    :param model: str: LLM model name
+    :param fix_type: str: "syntax" or "logic"
+    :param run_id: str: The run_id for RAG context filtering
+    :param gdd: str: Game Design Document for logic fixes
+    """
     logger.info(f"🛠️ 開始修復 {os.path.basename(file_path)} | 類型: {fix_type}")
 
     if not os.path.exists(file_path):
@@ -122,26 +122,48 @@ def run_fix(file_path: str, error_message: str, provider: str = "openai",
 
 def run_fix_loop(gdd: str, file_path: str, provider: str = "openai",
                  model: str = "gpt-4o-mini") -> Generator[str, None, None]:
-    """驗證專案目錄下的所有 Python 檔案"""
+    """
+    Validate and fix the entire project iteratively using static code analysis,
+    gdd: str: Game Design Document for logic fixes
+    file_path: str: The main game file path to test
+    provider: str: LLM provider
+    model: str: LLM model name
+    """
     yield f"data: [Member 3] 啟動專案級驗證流程...\n\n"
 
+    # Get all Python files in the project folder
     folder_path = os.path.dirname(file_path)
     files = [f for f in os.listdir(folder_path) if f.endswith(".py")]
+    full_path_files = [os.path.join(folder_path, f) for f in files]
+    # The folder name is run_id
     run_id = os.path.basename(folder_path)
+
+    symbols_table = get_project_symbols(folder_path)
 
     logger.info(f"--- 專案驗證開始 | RunID: {run_id} | 檔案清單: {files} ---")
 
-    # Static syntax check
-    for file in files:
-        full_path = os.path.join(folder_path, file)
-        valid, err = static_code_check(full_path)
+    # Static syntax check for all files
+    for file in full_path_files:
+        valid, err = static_code_check(file)
         if not valid:
             yield f"data: ❌ {file} 語法錯誤，正在修復...\n\n"
-            res_path, _ = run_fix(full_path, err, provider, model, "syntax", run_id)
+            res_path, _ = run_fix(file, err, provider, model, "syntax", run_id)
             if not res_path:
                 yield f"data: ❌ 檔案 {file} 無法修復語法，終止。\n\n"
                 return
             yield f"data: ✅ {file} 語法已修復。\n\n"
+
+    # Cross-file static analysis (semantic check)
+    for file in full_path_files:
+        errors = check_cross_file_calls(file, symbols_table)
+        if errors:
+            for err in errors:
+                yield f"data: ❌ {file} 發現跨檔案呼叫錯誤，正在修復...\n\n"
+                res_path, _ = run_fix(file, err, provider, model, "syntax", run_id)
+                if not res_path:
+                    yield f"data: ❌ 檔案 {file} 無法修復跨檔案錯誤，終止。\n\n"
+                    return
+            yield f"data: ✅ {file} 跨檔案呼叫錯誤已修復。\n\n"
 
     success, err = run_fuzz_test(file_path, 10)
     file_regex = r'File ".*[/\\]([^/\\]+\.py)"'
@@ -168,12 +190,11 @@ def run_fix_loop(gdd: str, file_path: str, provider: str = "openai",
         success, err = run_fuzz_test(file_path, 10)
 
     # Logic check with RAG
-    for file in files:
-        full_path = os.path.join(folder_path, file)
-        valid, err = game_logic_check_with_rag(full_path, provider, model, run_id)
+    for file in full_path_files:
+        valid, err = game_logic_check_with_rag(file_path, provider, model, run_id)
         if not valid:
             yield f"data: ❌ {file} 發現邏輯瑕疵，正在修正...\n\n"
-            res_path, _ = run_fix(full_path, err, provider, model, "logic", run_id, gdd)
+            res_path, _ = run_fix(file, err, provider, model, "logic", run_id, gdd)
             if not res_path:
                 yield f"data: ❌ 檔案 {file} 無法解決邏輯錯誤，終止。\n\n"
                 return
