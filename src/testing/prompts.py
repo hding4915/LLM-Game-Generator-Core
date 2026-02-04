@@ -41,11 +41,11 @@ Review the following game code for logical correctness:
 {code}
 
 Please check:
-1. Does it meet the GDD requirements?
-2. Is it consistent with the reference code?
-3. Are there any logical flaws or errors?
+1. Is it consistent with the reference code?
+2. Are there any logical flaws or errors?
+3. Does it use the existing functions and classes properly?
 
-If the code passes all checks, respond with "PASS".
+If the code passes all checks, respond only "PASS".
 Otherwise, explain the issues found.
 """
 
@@ -70,4 +70,25 @@ Please:
 3. Provide the complete fixed code
 
 Return only the fixed code in a ```python code block.
+"""
+
+FUZZER_PROMPT = """
+Here is the error: {err}, just respond the file names that cause errors.
+Strictly follow the format below.
+*Rules*:
+1. The response should only contain the file names, one per line.
+2. Do not include any additional text or explanations.
+
+Example:
+*input*
+Traceback (most recent call last):
+  File "/Users/jess/NCKU/Computer-Project-Design/LLM-Game-Generator-Core/output/c6a1e818-4613-4f7c-af84-cc8fd4fca156/main.py", line 36, in <module>
+    main()
+  File "/Users/jess/NCKU/Computer-Project-Design/LLM-Game-Generator-Core/output/c6a1e818-4613-4f7c-af84-cc8fd4fca156/main.py", line 29, in main
+    game.draw(screen)
+    ^^^^^^^^^
+AttributeError: 'Game' object has no attribute 'draw'
+
+*output*
+main.py
 """

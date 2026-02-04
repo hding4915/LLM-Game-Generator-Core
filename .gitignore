@@ -1,6 +1,6 @@
 **/*.env
 
-
+**/*log
 **/flask_session/
 
 

@@ -1,9 +1,14 @@
 import os
 
+import logging
 from dotenv import load_dotenv
 
 load_dotenv()
 
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 # --- Helper Functions ---
 def get_env_bool(var_name, default=False):
@@ -96,4 +101,14 @@ class Config:
     CF_ACCESS_CLIENT_ID = os.getenv("CF_ACCESS_CLIENT_ID", None)
     CF_ACCESS_CLIENT_SECRET = os.getenv("CF_ACCESS_CLIENT_SECRET", None)
 
+    # Logger
+    LOG_FILE_PATH = os.getenv("LOG_FILE_PATH", "app.log")
+    LOG_LEVEL = os.getenv("LOG_LEVEL", "DEBUG").upper()
+    @staticmethod
+    def setup_logging_dir():
+        log_dir = os.path.dirname(Config.LOG_FILE_PATH)
+        if log_dir and not os.path.exists(log_dir):
+            os.makedirs(log_dir)
+
 config = Config()
+config.setup_logging_dir()
