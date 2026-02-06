@@ -3,6 +3,9 @@ FIXER_PROMPT = """
 You are a Python Expert and QA Engineer.
 I tried to run a Pygame script, but it crashed or had errors.
 
+【CODE STRUCTURE】:
+{structure}
+
 【BROKEN CODE】:
 {code}
 
@@ -34,6 +37,9 @@ Return the fixed code inside a ```python ... ``` block.
 LOGIC_REVIEW_PROMPT = """
 Review the following game code for logical correctness:
 
+【CODE STRUCTURE】:
+{structure}
+
 【Relevant Reference Code (from RAG)】
 {context}
 
@@ -54,6 +60,9 @@ Otherwise, explain the issues found.
 # 在 src/testing/prompts.py 中
 LOGIC_FIXER_PROMPT = """
 Fix the logical errors in the following game code:
+
+【CODE STRUCTURE】:
+{structure}
 
 【Relevant Reference Examples (from RAG)】
 {context}

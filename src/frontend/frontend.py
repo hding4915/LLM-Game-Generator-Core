@@ -1,6 +1,8 @@
 import os
 from flask import Flask, render_template, request, redirect, url_for, flash, session, Response, stream_with_context
 from flask_session import Session
+from streamlit import session_state
+
 from config import config
 
 from src.design.chains import run_design_phase
@@ -47,7 +49,65 @@ def index():
                 # --- Phase 1: Design ---
                 session['gdd_result_global'] = run_design_phase(user_input, provider, model_name)
                 # --- Phase 2: Core ---
-                session['game_main_path_global'] = run_core_phase(session.get('gdd_result_global'), provider, model_name)
+                session['game_main_path_global'], structure = run_core_phase(session.get('gdd_result_global'), provider, model_name)
+                """
+                [
+                  {
+                    "filename": "config.py",
+                    "description": "Contains game configuration and constants.",
+                    "dependencies": [],
+                    "classes_functions": [
+                      "GameConfig"
+                    ]
+                  },
+                  {
+                    "filename": "utils.py",
+                    "description": "Contains utility functions for the game.",
+                    "dependencies": [],
+                    "classes_functions": [
+                      "generate_random_tile()",
+                      "check_game_over()",
+                      "check_win_condition()"
+                    ]
+                  },
+                  {
+                    "filename": "game_logic.py",
+                    "description": "Contains the core Game class and logic.",
+                    "dependencies": [
+                      "config.py"
+                    ],
+                    "classes_functions": [
+                      "Game"
+                    ]
+                  },
+                  {
+                    "filename": "rendering.py",
+                    "description": "Handles rendering of the game elements.",
+                    "dependencies": [
+                      "config.py"
+                    ],
+                    "classes_functions": [
+                      "Renderer"
+                    ]
+                  },
+                  {
+                    "filename": "main.py",
+                    "description": "Entry point. Initializes the game loop and handles events.",
+                    "dependencies": [
+                      "utils.py",
+                      "game_logic.py",
+                      "config.py",
+                      "rendering.py"
+                    ],
+                    "classes_functions": [
+                      "main()"
+                    ]
+                  }
+                ]
+                """
+                session['game_structure'] = structure
+
+                # print("[===========================================]", session.get('game_structure'))
 
                 print("[Member 2] Generation complete")
 
@@ -98,12 +158,12 @@ def fix_stream():
         def error_gen():
             yield "data: 錯誤：尚未生成遊戲，無法開始驗證。\n\n"
         return Response(error_gen(), mimetype='text/event-stream')
-    gdd = session.get('gdd_result_global')
+    structure = session['game_structure']
     path = session.get('game_main_path_global')
     provider = session.get('provider')
     model_name = session.get('model_name')
     return Response(
-        stream_with_context(run_fix_loop(gdd, path, provider, model_name)),
+        stream_with_context(run_fix_loop(structure, path, provider, model_name)),
         mimetype='text/event-stream'
     )
 

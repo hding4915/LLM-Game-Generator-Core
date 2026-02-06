@@ -224,18 +224,47 @@ ASSETS:
 RETURN ONLY A VALID JSON LIST. No markdown formatting, no extra text.
 The JSON should be a list of objects, where each object represents a file:
 [
-    {
+    {{
         "filename": "main.py",
         "description": "Entry point. Initializes the game loop and handles events.",
         "dependencies": ["utils.py", "game_logic.py", "config.py"],
         "classes_functions": ["main()"]
-    },
-    {
+    }},
+    {{
         "filename": "game_logic.py",
         "description": "Contains the core Game class and logic.",
         "dependencies": ["config.py"],
         "classes_functions": ["Game"]
-    }
+    }}
 ]
 Ensure 'main.py' includes ALL necessary dependencies (e.g. game logic, config) to run the game.
+"""
+
+MODULAR_CODE_PROMPT_TEMPLATE = """
+Write the Python code for the file: '{filename}'.
+
+PROJECT CONTEXT:
+GDD Summary: {gdd_context}...
+
+CURRENT FILE SPEC:
+- Filename: {filename}
+- Responsibility: {description}
+- Dependencies to Import: {deps_str}
+- Assets Available: {asset_json}
+
+RAG CONTEXT (Definitions from existing files):
+{rag_context}
+
+{allowlist_str}
+
+INSTRUCTIONS:
+1. **IMPORT EXTERNAL LIBS**: If you use `pygame`, `random`, `math`, `sys` etc., you MUST import them explicitly.
+2. **IMPORT INTERNAL DEPS**: You MUST import the classes/functions listed in 'Dependencies' from their respective filenames (without .py).
+3. **CHECK ALLOWLIST**: Refer to the 'STRICT IMPORT ALLOWLIST' above. Do not import symbols not listed there.
+4. **NO RE-IMPLEMENTATION**: Do NOT define classes that are already shown in RAG CONTEXT. Use the imports.
+5. **CHECK SIGNATURES**: Look at RAG CONTEXT for `__init__` methods. Pass ONLY the arguments defined there.
+6. **IMPLEMENTATION**: Implement only the logic described in 'Responsibility'.
+7. **Output**: Return ONLY the raw Python code.
+
+{special_instruction}
 """
