@@ -15,9 +15,7 @@ from config import config
 logger = logging.getLogger("Member3-Fixer")
 logger.setLevel(getattr(logging, config.LOG_LEVEL, logging.DEBUG))
 
-
 TEMPERATURE = 0.1
-
 
 def get_project_signatures(folder_path: str, exclude_filename: str) -> str:
     """Generate project-level signature context."""
@@ -151,6 +149,7 @@ def run_fix_loop(structure: list, file_path: str, provider: str = "openai",
         return
 
     files = [f for f in os.listdir(folder_path) if f.endswith(".py")]
+    files = [f for f in files if "fuzz" not in f]
     full_path_files = [os.path.join(folder_path, f) for f in files]
     run_id = os.path.basename(folder_path)
     symbols_table = get_project_symbols(folder_path)
@@ -168,16 +167,6 @@ def run_fix_loop(structure: list, file_path: str, provider: str = "openai",
                 return
             yield f"data: ✅ {os.path.basename(file)} Syntax fixed.\n\n"
 
-    # 4. RAG Logic Check
-    for file in full_path_files:
-        valid, err = game_logic_check_with_rag(file, provider, model, run_id, structure)
-        if not valid:
-            yield f"data: ❌ {os.path.basename(file)} optimizing logic...\n\n"
-            res_path, _ = run_fix(file, err, provider, model, "logic", run_id, structure)
-            if not res_path:
-                return
-            yield f"data: ✅ {os.path.basename(file)} logic updated.\n\n"
-
     # 2. Cross-file Check
     for file in full_path_files:
         errors = check_cross_file_calls(file, symbols_table)
@@ -192,7 +181,7 @@ def run_fix_loop(structure: list, file_path: str, provider: str = "openai",
     # 3. Fuzzer Test
     success, err = run_fuzz_test(file_path, 10)
     retry_count = 0
-    max_retries = 3
+    max_retries = 2
 
     file_regex = r'File ".*[/\\]([^/\\]+\.py)"'
 

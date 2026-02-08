@@ -49,7 +49,7 @@ def index():
                 # --- Phase 1: Design ---
                 session['gdd_result_global'] = run_design_phase(user_input, provider, model_name)
                 # --- Phase 2: Core ---
-                session['game_main_path_global'], structure = run_core_phase(session.get('gdd_result_global'), provider, model_name)
+                session['game_main_path_global'], structure = run_core_phase(session.get('gdd_result_global'), provider, model_name, use_modular=False)
                 """
                 [
                   {

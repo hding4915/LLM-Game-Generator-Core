@@ -46,4 +46,11 @@ Instructions:
 
 3. Keep it simple and focused on an MVP version of the game.
 4. Avoid unnecessary technical details; focus on design and rules.
+5. Ensure every terms used in the GDD is clearly defined and explained.
+6. The GDD should be comprehensive enough for a developer to implement the game without needing further clarification.
+7. The GDD should list all the functions and classes that the developer needs to implement, along with a brief description of each.
+8. The entities' should have proper speed, size, behaviors, interactions.....,
+    which means you should clarify all required parameters for the game. 
+    For example, if the game is a 8 ball pool game, the balls should locate at specific positions and the speed of the ball should be reasonable.
+    If the game is a shooting game, the player should have a reasonable speed and the bullet should have a reasonable speed and cooldown time.
 """

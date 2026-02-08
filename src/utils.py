@@ -157,7 +157,7 @@ def call_llm(
         provider: str = "openai",
         model: str = "gpt-4o-mini",
         temperature: float = 0.7,
-        max_tokens: int = 8192
+        max_tokens: int = 256000
 ) -> str:
     """
     [統一入口] 支援多種 LLM Provider

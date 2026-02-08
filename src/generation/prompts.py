@@ -37,7 +37,7 @@ Task: Write the complete 'main.py' based on the Design and Assets.
    - **Move**: `self.rect.x += self.velocity.x` AND `self.rect.y += self.velocity.y` (use float vectors for precision).
    - **Friction**: `self.velocity *= 0.98`.
    - **Bounce**: Invert velocity on wall collision.
-   - use pymunk to implement physics instead of pygame directly.
+   - **[Important] Use pymunk**: to implement physics instead of pygame directly.
 
 7. **Game Flow & Start Screen (MANDATORY)**:
    - **State Machine**: The game MUST have states: `"START"`, `"PLAYING"`, `"GAME_OVER"`.
