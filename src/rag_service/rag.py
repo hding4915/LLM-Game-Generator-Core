@@ -171,18 +171,30 @@ class RagService:
 
     def insert(self, content: str, metadata: dict = None) -> str:
         new_id = self.hash_content(content)
-        if metadata is None:
-            self.collection.upsert(
-                documents=[content],
-                ids=[new_id],
-            )
-        else:
-            self.collection.upsert(
-                documents=[content],
-                metadatas=[metadata],
-                ids=[new_id],
-            )
+        self.collection.upsert(
+            documents=[content],
+            metadatas=[metadata] if metadata else None,
+            ids=[new_id],
+        )
         return new_id
+
+    def batch_insert(self, contents: list[str], metadatas: list[dict] = None):
+        """[新增] 支持大量資料的批次插入"""
+        if not contents:
+            return
+
+        ids = [self.hash_content(c) for c in contents]
+
+        # ChromaDB 建議分批處理（例如每 100 筆一組）
+        batch_size = 100
+        for i in range(0, len(contents), batch_size):
+            end = i + batch_size
+            self.collection.upsert(
+                documents=contents[i:end],
+                metadatas=metadatas[i:end] if metadatas else None,
+                ids=ids[i:end]
+            )
+        print(f"✅ 已成功插入/更新 {len(contents)} 筆資料到 Collection: {self.collection.name}")
 
     def query(self, question: str, filters: dict = None, n_results: int = 3):
         return self.collection.query(

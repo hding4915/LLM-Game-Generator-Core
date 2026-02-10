@@ -4,6 +4,9 @@
 **/flask_session/
 
 
+# log
+**/*log
+
 # ide
 .idea
 .vscode

@@ -14,181 +14,193 @@ Example Output:
 """
 
 PROGRAMMER_PROMPT_TEMPLATE = """
-You are an expert Pygame Developer.
+You are an expert Python Arcade 3.0 Developer.
 Task: Write the complete 'main.py' based on the Design and Assets.
 
-【CRITICAL RULES】:
-1. **Visuals**: Use `pygame.draw.rect` or `pygame.draw.circle`. NO `pygame.image.load`.
-2. **Game Loop**: Handle `pygame.QUIT`. Use `clock.tick(60)`.
-3. **Format**: Wrap the code in ```python ... ``` block.
+【CRITICAL RULES for ARCADE 3.0】:
+1. **Architecture**: 
+   - Must use `class GameWindow(arcade.Window)`.
+   - NO global `while` loops. Use `arcade.run()` at the end.
+   - Use `setup()` for initialization (and restarting) and `on_draw()` for rendering.
 
-4. **Sprite Update Safety**:
-   - Define `update(self, *args)` for ALL Sprites to prevent TypeError.
+2. **Strict Drawing API (Breaking Changes)**:
+   - **BANNED**: `draw_rectangle_filled` (Old API).
+   - **REQUIRED**: Use `arcade.draw_rect_filled(rect, color)`.
+     - You MUST create a rect object: `arcade.XYWH(cx, cy, w, h)` or `arcade.LBWH(left, bottom, w, h)`.
+   - **Colors**: Use `arcade.color.COLOR_NAME` or RGB tuples.
 
-5. **Mouse Dragging Logic (CRITICAL for Pool/Slingshot)**:
-   - **Interaction Type**: 
-     - **Global Drag (Recommended)**: Player can click anywhere to aim. `MOUSEBUTTONDOWN` sets `aiming=True` regardless of cursor position.
-   - **Logic**:
-     - `MOUSEBUTTONDOWN`: `self.aiming = True`, `self.start_pos = event.pos`.
-     - `MOUSEBUTTONUP`: if `aiming`: calculate vector `(start_pos - end_pos)`, apply force, reset `aiming`.
-   - **Visuals**: Draw an aiming line when `aiming` is True.
+3. **Asset Management (No External Files)**:
+   - Do NOT load images (`arcade.load_texture`). 
+   - **Procedural Textures**: You MUST generate textures using `PIL` (Pillow) or `arcade.make_circle_texture` (if applicable) for Sprites.
+   - **Texture Constructor**: `arcade.Texture(image)` (Do NOT pass a name string).
 
-6. **Physics Implementation**:
-   - **Move**: `self.rect.x += self.velocity.x` AND `self.rect.y += self.velocity.y` (use float vectors for precision).
-   - **Friction**: `self.velocity *= 0.98`.
-   - **Bounce**: Invert velocity on wall collision.
-   - use pymunk to implement physics instead of pygame directly.
+4. **Sprite & Physics**:
+   - Inherit from `arcade.Sprite`.
+   - **Update Logic**: `on_update(self, delta_time)` is MANDATORY in the Window class.
+   - **Sprite Update**: `self.sprite_list.update()` passes `delta_time` to sprites automatically in 3.0. 
+     - Your Sprite's `update` method MUST accept it: `def update(self, delta_time: float = 1/60):`.
 
-7. **Game Flow & Start Screen (MANDATORY)**:
-   - **State Machine**: The game MUST have states: `"START"`, `"PLAYING"`, `"GAME_OVER"`.
-   - **Start Screen**:
-     - Start the game in `"START"` state.
-     - Display the **Game Title** (Large Font).
-     - Display **Instructions** based on GDD (e.g., "Press WASD to Move", "Drag Mouse to Shoot").
-     - **Transition**: Pressing ANY key or clicking mouse switches state to `"PLAYING"`.
-   - **Game Over Screen**:
-     - When player loses/wins, switch to `"GAME_OVER"`.
-     - Display "Game Over" and "Press R to Restart".
+5. **Physics Strategy (Choose based on GDD)**:
+   - **Scenario A: Simple (Platformer/Top-down)**:
+     - Use `self.physics_engine = arcade.PhysicsEngineSimple(player, walls)`.
+   - **Scenario B: Complex (Pool/Physics Toys)**:
+     - Use `import pymunk`.
+     - Create `self.space = pymunk.Space()`.
+     - **Sync**: Manually sync Sprite positions to Pymunk bodies in `update()`.
+
+6. **Game States (MANDATORY)**:
+   - Implement "START", "PLAYING", "GAME_OVER" states.
+   - **Start Screen**: Draw Title and "Click to Start".
+   - **Game Over**: Draw "Game Over" and "Click to Restart".
+   - **Restart Logic**: Calling `self.setup()` should fully reset the game.
+
+7. **Input Handling**:
+   - Implement `on_key_press`, `on_mouse_press`, `on_mouse_drag`, `on_mouse_release`.
+   - **Dragging Logic (Pool/Slingshot)**:
+     - `on_mouse_press`: Set `self.start_x`, `self.start_y`, `self.aiming = True`.
+     - `on_mouse_drag`: Update `self.current_x/y` for drawing aim line.
+     - `on_mouse_release`: Calculate vector, apply force, set `self.aiming = False`.
 
 【CODE STRUCTURE TEMPLATE】:
 ```python
-import pygame
-import sys
+import arcade
 import random
 import math
-import subprocess
-import os
+import pymunk 
+from PIL import Image, ImageDraw
 
+# Config
+SCREEN_WIDTH = 800
+SCREEN_HEIGHT = 600
+SCREEN_TITLE = "Arcade 3.0 Game"
 
-WIDTH, HEIGHT = 800, 600
-FPS = 60
-# ... Colors ...
+# State Constants
+STATE_START = 0
+STATE_PLAYING = 1
+STATE_GAME_OVER = 2
 
-class Player(pygame.sprite.Sprite):
-    def __init__(self):
+class GameSprite(arcade.Sprite):
+    def __init__(self, color, size, x, y):
         super().__init__()
-        # ...
-    def update(self, *args):
-        # ...
+        # Generate Texture Programmatically
+        self.texture = self.make_texture(color, size)
+        self.center_x = x
+        self.center_y = y
+        self.body = None # Pymunk body
 
-def draw_text(screen, text, size, color, x, y):
-    font = pygame.font.Font(None, size)
-    text_surface = font.render(text, True, color)
-    text_rect = text_surface.get_rect(center=(x, y))
-    screen.blit(text_surface, text_rect)
+    def make_texture(self, color, size):
+        img = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(img)
+        draw.rectangle((0, 0, size, size), fill=color)
+        return arcade.Texture(img) 
 
+    def update(self, delta_time: float = 1/60):
+        if self.body:
+            self.center_x = self.body.position.x
+            self.center_y = self.body.position.y
+            self.angle = math.degrees(self.body.angle)
 
-def restart_program():
-    python_exe = sys.executable  # 當前 Python 執行檔路徑
-    script_path = os.path.abspath(sys.argv[0])
-    subprocess.Popen([python_exe, script_path])  # 啟動新進程
-    pygame.quit()
-    sys.exit()  # 關閉舊程式
+class GameWindow(arcade.Window):
+    def __init__(self):
+        super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
+        self.state = STATE_START
+        self.all_sprites = arcade.SpriteList()
+        self.space = None 
+
+    def setup(self):
+        # Initialize sprites and physics here (Reset Game)
+        self.state = STATE_START
+        self.all_sprites = arcade.SpriteList()
+        # ... setup physics ...
+
+    def on_draw(self):
+        self.clear()
+
+        if self.state == STATE_START:
+            arcade.draw_text("GAME TITLE", SCREEN_WIDTH/2, SCREEN_HEIGHT/2, arcade.color.WHITE, 30, anchor_x="center")
+            arcade.draw_text("Click to Start", SCREEN_WIDTH/2, SCREEN_HEIGHT/2 - 50, arcade.color.GRAY, 20, anchor_x="center")
+
+        elif self.state == STATE_PLAYING:
+            self.all_sprites.draw()
+            # Draw aiming lines or UI here
+
+        elif self.state == STATE_GAME_OVER:
+            arcade.draw_text("GAME OVER", SCREEN_WIDTH/2, SCREEN_HEIGHT/2, arcade.color.RED, 30, anchor_x="center")
+            arcade.draw_text("Click to Restart", SCREEN_WIDTH/2, SCREEN_HEIGHT/2 - 50, arcade.color.WHITE, 20, anchor_x="center")
+
+    def on_update(self, delta_time):
+        if self.state == STATE_PLAYING:
+            if self.space:
+                self.space.step(1/60)
+            self.all_sprites.update() 
+
+    def on_mouse_press(self, x, y, button, modifiers):
+        if self.state == STATE_START:
+            self.state = STATE_PLAYING
+            # Optional: Setup actual game level here if needed
+        elif self.state == STATE_GAME_OVER:
+            self.setup() # Restart
+        elif self.state == STATE_PLAYING:
+            # Handle game input
+            pass
+
+    def on_mouse_release(self, x, y, button, modifiers):
+        if self.state == STATE_PLAYING:
+            pass
 
 def main():
-    pygame.init()
-    screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    pygame.display.set_caption("Auto Generated Game")
-    clock = pygame.time.Clock()
-
-    # Game State: "START", "PLAYING", "GAME_OVER"
-    game_state = "START"
-
-    all_sprites = pygame.sprite.Group()
-    # Init sprites...
-
-    running = True
-    while running:
-        # 1. Event Handling
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-
-            if game_state == "START":
-                if event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN:
-                    game_state = "PLAYING"
-
-            elif game_state == "PLAYING":
-                # Handle Game Inputs (Jump, Shoot, Drag)
-                pass
-
-            elif game_state == "GAME_OVER":
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_r:
-                print("R key pressed! Detected.")  # 先測試偵測
-
-
-        # 2. Update & Draw
-        screen.fill((0,0,0))
-
-        if game_state == "START":
-            draw_text(screen, "GAME TITLE", 64, (255, 255, 255), WIDTH//2, HEIGHT//2 - 50)
-            draw_text(screen, "Press Any Key to Start", 32, (200, 200, 200), WIDTH//2, HEIGHT//2 + 20)
-            # Draw specific controls from GDD (e.g., "WASD to Move")
-
-        elif game_state == "PLAYING":
-            all_sprites.update()
-            all_sprites.draw(screen)
-            # Draw UI (Score, etc.)
-
-        elif game_state == "GAME_OVER":
-            draw_text(screen, "GAME OVER", 64, (255, 0, 0), WIDTH//2, HEIGHT//2)
-            draw_text(screen, "Press R to Restart", 32, (255, 255, 255), WIDTH//2, HEIGHT//2 + 50)
-
-        pygame.display.flip()
-        clock.tick(FPS)
-
-    pygame.quit()
-    sys.exit()
+    window = GameWindow()
+    window.setup()
+    arcade.run()
 
 if __name__ == "__main__":
     main()
 ```
 """
 
-# Fuzzer Script Generator Prompt (升級版：強力拖曳)
+# Fuzzer Script Generator Prompt (Arcade 3.0 Event-Driven Version)
 FUZZER_GENERATION_PROMPT = """
-You are a QA Automation Engineer specializing in Pygame.
-Task: Write a "Monkey Bot" script snippet to stress-test the game described in the GDD.
+You are a QA Automation Engineer specializing in Python Arcade.
+Task: Write a "Monkey Bot" logic block to stress-test the Arcade game.
 
 【GDD / RULES】:
 {gdd}
 
 【INSTRUCTIONS】:
-1. Analyze the GDD to identify VALID inputs.
-2. **Handling Dragging (Important)**: 
-   - If the game controls involve "Dragging" (e.g., Pull back to shoot, Slingshot, Pool):
-   - You MUST simulate a `MOUSEBUTTONDOWN` at one location, and a `MOUSEBUTTONUP` at a DIFFERENT location.
-   - **FORCE GENERATION**: Ensure the drag distance is LARGE enough (100px+) to overcome friction. Small drags might be ignored by game logic.
-   - **TARGETING**: Try `start_pos` near the CENTER.
-3. Use `pygame.event.post` to simulate inputs.
-4. Output ONLY the logic code block.
+1. Arcade does not have a global event loop queue we can post to.
+2. Instead, generate code that **Directly Calls** the window's event methods to simulate input:
+   - `window.on_mouse_press(x, y, button, modifiers)`
+   - `window.on_mouse_release(x, y, button, modifiers)`
+   - `window.on_key_press(key, modifiers)`
+3. **Handling Dragging (Crucial for Physics Games)**:
+   - Simulate `on_mouse_press` at a start location.
+   - Simulate `on_mouse_release` at a **DIFFERENT** location (min 100px distance) to ensure force is applied.
+   - Target the center of the screen `SCREEN_WIDTH // 2` to hit objects.
+4. Output ONLY the python logic block.
 
 【EXAMPLE OUTPUT FORMAT】:
 ```python
-# Randomly move (Keyboard)
+# Randomly Key Press
 if random.random() < 0.1:
-    keys = [pygame.K_LEFT, pygame.K_RIGHT, pygame.K_UP, pygame.K_DOWN]
-    pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': random.choice(keys), 'unicode': ''}))
+    keys = [arcade.key.LEFT, arcade.key.RIGHT, arcade.key.UP, arcade.key.DOWN]
+    k = random.choice(keys)
+    window.on_key_press(k, 0)
 
 # Randomly Drag-and-Shoot (Mouse)
 # Simulates a STRONG pull back
 if random.random() < 0.05:
-    # Assume object is near center (or global drag)
-    center_x, center_y = globals().get('WIDTH', 800) // 2, globals().get('HEIGHT', 600) // 2
-    start_pos = (center_x + random.randint(-20, 20), center_y + random.randint(-20, 20))
+    start_x = SCREEN_WIDTH // 2
+    start_y = SCREEN_HEIGHT // 2
 
-    # Drag FAR away to create strong force (at least 100px)
+    # Simulate Press (Start Drag)
+    window.on_mouse_press(start_x, start_y, arcade.MOUSE_BUTTON_LEFT, 0)
+
+    # Calculate Release Point (Strong Pull for Physics)
     # Using large offsets to ensure movement
     dx = random.choice([-150, 150]) + random.randint(-50, 50)
     dy = random.choice([-150, 150]) + random.randint(-50, 50)
-    end_pos = (start_pos[0] + dx, start_pos[1] + dy)
+    end_x, end_y = start_x + dx, start_y + dy
 
-    # Post DOWN event (Start Drag)
-    pygame.event.post(pygame.event.Event(pygame.MOUSEBUTTONDOWN, {'pos': start_pos, 'button': 1}))
-
-    # Post UP event (Release Drag)
-    pygame.event.post(pygame.event.Event(pygame.MOUSEBUTTONUP, {'pos': end_pos, 'button': 1}))
-```
-
-Now, generate the test logic for this specific game:
+    # Simulate Release (Fire)
+    window.on_mouse_release(end_x, end_y, arcade.MOUSE_BUTTON_LEFT, 0)
 """

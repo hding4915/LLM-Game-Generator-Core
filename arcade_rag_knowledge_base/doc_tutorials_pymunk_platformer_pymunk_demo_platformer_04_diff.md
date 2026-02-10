@@ -1,0 +1,9 @@
+Source: doc/tutorials/pymunk_platformer/pymunk_demo_platformer_04_diff.rst
+
+:orphan:
+
+
+## pymunk_demo_platformer_04.py Diff
+
+    :caption: pymunk_demo_platformer_04.py
+    :diff: pymunk_demo_platformer_03.py
