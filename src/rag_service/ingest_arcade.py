@@ -2,11 +2,12 @@ import os
 from pathlib import Path
 from tqdm import tqdm
 from langchain_text_splitters import MarkdownTextSplitter
-from rag import RagService, RagConfig
+from src.rag_service.rag import RagService, RagConfig
+from config import config
 
 # --- 設定 ---
-SOURCE_DIR = "../../arcade_rag_knowledge_base"
-COLLECTION_NAME = "arcade_v3_knowledge"
+SOURCE_DIR = config.ARCADE_SOURCE_DIR
+COLLECTION_NAME = config.ARCADE_COLLECTION_NAME
 
 
 def main():
@@ -81,6 +82,7 @@ def main():
 
 if __name__ == "__main__":
     # main()
+    print(SOURCE_DIR)
     config = RagConfig(collection_name=COLLECTION_NAME)
     rag = RagService(rag_config=config)
 
@@ -89,3 +91,4 @@ if __name__ == "__main__":
     print(result)
     print(result['documents'])
     print(result['metadatas'][0])
+    print(result['metadatas'][0][0]['file_name'])
