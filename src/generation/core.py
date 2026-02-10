@@ -1,3 +1,4 @@
+from src.testing.static_code_analyzer import static_code_check
 from src.utils import call_llm
 from src.generation.prompts import *
 from src.generation.asset_gen import generate_assets
@@ -29,6 +30,31 @@ except ImportError:
     logging.info("[Warning] Langchain not found. RAG code splitting will be limited.")
 
 
+def _code_review_process(code, provider, model):
+    """
+    自定義的程式碼審查流程：先檢查語法，再檢查邏輯
+    """
+    # Syntax Check, creating tempfile
+    temp_filename = f"temp_check_{uuid.uuid4().hex}.py"
+    with open(temp_filename, "w", encoding="utf-8") as f:
+        f.write(code)
+
+    try:
+        is_valid, error_msg = static_code_check(temp_filename)
+    finally:
+        if os.path.exists(temp_filename):
+            os.remove(temp_filename)
+
+    if not is_valid:
+        return f"SYNTAX ERROR DETECTED: {error_msg}\nPlease fix the syntax error."
+
+    # 2. Logic Check using LLM
+    review_input = f"CODE:\n{code}\n\nCheck this code."
+    review_feedback = call_llm(CODE_REVIEWER_PROMPT, review_input, provider=provider, model=model, temperature=0.1)
+
+    return review_feedback
+
+
 def generate_code(
         gdd_context: str,
         asset_json: str,
@@ -36,7 +62,7 @@ def generate_code(
         model: str = "gpt-4o-mini"
 ) -> str:
     """
-    Generate monolithic code (Legacy/Fallback).
+    Generate monolithic code with Review Agent Loop.
     """
     full_prompt = f"""
     GDD:
@@ -47,8 +73,29 @@ def generate_code(
 
     Write the full code now following the Template.
     """
-    return call_llm(PROGRAMMER_PROMPT_TEMPLATE, full_prompt, provider=provider, model=model, temperature=TEMPERATURE)
+    current_code = call_llm(PROGRAMMER_PROMPT_TEMPLATE, full_prompt, provider=provider, model=model,
+                            temperature=TEMPERATURE)
 
+    logging.info("進入程式碼審查迴圈...")
+    max_retries = 3
+
+    for i in range(max_retries):
+        feedback = _code_review_process(current_code, provider, model)
+
+        if "PASS" in feedback.upper() and len(feedback) < 50:
+            logging.info(f"程式碼審查通過 ✅ (Round {i + 1})")
+            return current_code
+
+        logging.warning(f"程式碼審查未通過 ❌ (Round {i + 1}): {feedback[:100]}...")
+
+        # Update prompt with feedback for revision
+        revise_prompt = f"{full_prompt}\n\n[Previous Code with Errors]:\n{current_code}\n\n[QA Feedback]:\n{feedback}\n\nPlease rewrite the code to fix these errors."
+
+        # re-generate code based on feedback
+        current_code = call_llm(PROGRAMMER_PROMPT_TEMPLATE, revise_prompt, provider=provider, model=model,
+                                temperature=TEMPERATURE)
+
+    return current_code
 
 def generate_structural_code(
         gdd_context: str,

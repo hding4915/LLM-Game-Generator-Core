@@ -3,6 +3,57 @@ import requests
 from config import config
 import os
 
+def generate_with_reviewer(
+        generator_func,  # the function that generates the content (e.g., GDD or Code)
+        generator_args: dict,  # generator_func params
+        reviewer_prompt: str,  # Prompt Template
+        context_text: str,  # the generated content
+        provider: str,
+        model: str,
+        max_retries: int = 3
+) -> str:
+    """
+    通用審查迴圈：生成 -> 審查 -> (如果不通過) 附帶意見重生成
+    """
+    current_content = context_text
+
+    # If context_text is empty, generate first
+    if not current_content:
+        current_content = generator_func(**generator_args)
+
+    print(f"--- [Review Loop] 開始審查 (Max Retries: {max_retries}) ---")
+
+    for i in range(max_retries):
+        # 1. Call reviewer to check the current content
+        review_input = f"CONTENT_TO_REVIEW:\n{current_content}\n\n請檢查上述內容是否符合要求。如果不符合，請列出具體修改建議。如果完美，請只回答 'PASS'。"
+        review_feedback = call_llm(
+            system_prompt=reviewer_prompt,
+            user_prompt=review_input,
+            provider=provider,
+            model=model,
+            temperature=0.1
+        )
+
+        # 2. Determine if it passes review
+        if "PASS" in review_feedback.upper() and len(review_feedback) < 20:
+            print(f"--- [Review Loop] 第 {i + 1} 次審查通過 ✅ ---")
+            return current_content
+
+        # 3. If not passed, print feedback and prepare for next iteration
+        print(f"--- [Review Loop] 第 {i + 1} 次審查未通過，正在修正... ❌ ---")
+        print(f"意見: {review_feedback[:100]}...")
+
+        # 4. Prepare new prompt for revision (can include original prompt + feedback)
+        original_prompt = generator_args.get('user_prompt', '')
+        revise_prompt = f"{original_prompt}\n\n[Previous Attempt]:\n{current_content}\n\n[Reviewer Feedback]:\n{review_feedback}\n\n請根據 Feedback 修正並重新輸出完整的內容。"
+
+        # Regenerate with the new prompt
+        new_args = generator_args.copy()
+        new_args['user_prompt'] = revise_prompt
+        current_content = generator_func(**new_args)
+
+    print(f"--- [Review Loop] 達到最大重試次數，回傳最後結果 ---")
+    return current_content
 
 def get_client_config(provider: str) -> dict | None:
     """
@@ -208,3 +259,5 @@ def call_llm(
     except Exception as e:
         print(f"[LLM Call Error] Provider: {provider}, Error: {e}")
         return f"LLM Call Error ({provider}): {str(e)}"
+
+
