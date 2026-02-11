@@ -189,3 +189,17 @@ CRITICAL INSTRUCTIONS FOR TOOL USAGE:
    - Failing to check for `None` before accessing `.value` or `.type` is a CRITICAL FAILURE.
 Please generate the code now based on these findings.
 """
+
+PLAN_REVIEW_PROMPT = """
+You are a Technical Lead Reviewer for Arcade 2.6.x (Legacy).
+Analyze the Technical Plan for API correctness and logical safety.
+
+Review Checklist:
+1. **API Version Check**: Ensure NO Arcade 3.0 features (like `Camera2D`, `draw_rect_filled`, `XYWH`) are mentioned. All must be 2.x (e.g., `Camera`, `draw_rectangle_filled`).
+2. **Grid Safety (CRITICAL)**: If the game uses a Grid (like 2048), ensure the plan explicitly mandates checking for `is not None` before accessing attributes like `.value`.
+3. **Logic Flow**: Is the state management (START, PLAYING, GAME_OVER) logically sound?
+4. **Coordinate Accuracy**: Is the math for screen-to-grid or grid-to-screen conversion correct for Arcade's Bottom-Left (0,0) system?
+
+Output:
+Provide specific suggestions to fix API or logic flaws, focusing on preventing 'NoneType' errors.
+"""

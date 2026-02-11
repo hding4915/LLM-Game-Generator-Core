@@ -1,5 +1,5 @@
 from src.utils import call_llm
-from src.generation.prompts import PROGRAMMER_PROMPT_TEMPLATE, FUZZER_GENERATION_PROMPT, COMMON_DEVELOPER_INSTRUCTION
+from src.generation.prompts import FUZZER_GENERATION_PROMPT, COMMON_DEVELOPER_INSTRUCTION, PLAN_REVIEW_PROMPT
 from src.generation.asset_gen import generate_assets
 from src.generation.file_utils import save_code_to_file
 from src.rag_service.rag import RagService, RagConfig
@@ -11,6 +11,7 @@ import os
 rag_config = RagConfig(collection_name=config.ARCADE_COLLECTION_NAME)
 rag = RagService(rag_config=rag_config)
 
+
 def planner(
         gdd_context: str,
         asset_json: str,
@@ -19,14 +20,16 @@ def planner(
         temperature: float = 0.5
 ) -> str:
     """
-    第一階段：規劃。
-    [改進] 我們要求 Planner 除了規劃架構外，還要列出「數學與邏輯的關鍵約束 (Constraints)」。
-    這樣 2048 的網格邏輯就會由 Planner 自動生成，而不是我們手寫。
+    第一階段：規劃 (帶有 Reviewer 修正環節)。
+    透過 Reviewer 確保 Arcade 2.x API 的正確性與網格存取的安全性。
     """
-    system_prompt = "You are an expert Arcade 2.x Game Architect."
+    print("[Planner] 正在啟動技術架構規劃與安全審查...")
 
-    full_prompt = f"""
-    Create a detailed technical implementation plan for an Arcade 3.0 game.
+    system_prompt = "You are an expert Arcade 2.x (Legacy) Game Architect."
+
+    # 初始 Plan 請求
+    initial_user_prompt = f"""
+    Create a detailed technical implementation plan for an Arcade 2.x (Legacy) game.
 
     GDD:
     {gdd_context}
@@ -35,22 +38,49 @@ def planner(
     {asset_json}
 
     Please output the plan in two sections:
-
     SECTION 1: ARCHITECTURE
-    - Classes (e.g., GameView, Sprite classes)
+    - Classes (e.g., GameWindow, Sprite classes)
     - Key Methods (setup, on_draw, on_update)
     - Logic Flow
 
     SECTION 2: CRITICAL IMPLEMENTATION CONSTRAINTS
-    - List specific mathematical formulas needed (e.g., Grid to Screen coordinate conversion).
-    - List specific Arcade 3.0 features to use (e.g., Camera2D for scrolling).
-    - List potential pitfalls (e.g., "Ensure tiles don't overlap").
+    - List specific mathematical formulas needed.
+    - List Arcade 2.x legacy features to use (start_render, draw_rectangle_filled, etc.).
+    - List potential pitfalls (e.g., "Must check if cell is None before accessing .value").
 
     Return the plan in plain text.
     """
 
-    return call_llm(system_prompt, full_prompt, provider=provider, model=model, temperature=temperature)
+    # 第一輪生成
+    current_plan = call_llm(system_prompt, initial_user_prompt, provider=provider, model=model, temperature=temperature)
 
+    # 進入 Review 循環 (進行 2 次優化)
+    for attempt in range(2):
+        print(f"[Planner] 正在進行技術審查 (第 {attempt + 1}/2 輪)...")
+
+        # 呼叫 Reviewer 進行分析
+        review_feedback = call_llm(
+            "You are a Technical Lead Reviewer.",
+            f"Original Plan:\n{current_plan}\n\nReview this plan for Arcade 2.x API accuracy and Grid/NoneType safety.",
+            provider=provider, model=model
+        )
+
+        # 根據 Feedback 修正 Plan
+        refine_prompt = f"""
+        Original Plan:
+        {current_plan}
+
+        Review Feedback:
+        {review_feedback}
+
+        TASK: Rewrite the Technical Implementation Plan by incorporating the feedback. 
+        Ensure all API calls are Arcade 2.x and all grid accesses are guarded against NoneType errors.
+        """
+
+        current_plan = call_llm(system_prompt, refine_prompt, provider=provider, model=model, temperature=0.3)
+
+    print("[Planner] 技術規劃與安全審查完成。")
+    return current_plan
 
 def generate_code(
         gdd_context: str,
