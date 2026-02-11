@@ -2,14 +2,25 @@ from src.utils import call_llm
 from src.generation.prompts import FUZZER_GENERATION_PROMPT, COMMON_DEVELOPER_INSTRUCTION, PLAN_REVIEW_PROMPT
 from src.generation.asset_gen import generate_assets
 from src.generation.file_utils import save_code_to_file
+from src.generation.game_logic_cheat_sheet import *
 from src.rag_service.rag import RagService, RagConfig
 from config import config
-from src.generation.arcade_tools import ARCADE_TOOLS
 import os
 
 
 rag_config = RagConfig(collection_name=config.ARCADE_COLLECTION_NAME)
 rag = RagService(rag_config=rag_config)
+
+
+
+ARCADE_2_LEGACY_INSTRUCTION = """
+CRITICAL ARCADE 2.6.17 RULES:
+1. **Drawing**: Use `arcade.draw_rectangle_filled(center_x, center_y, width, height, color)`.
+   - Note: It uses CENTER x/y, not corner!
+2. **Rendering**: Use `arcade.start_render()` inside `on_draw()`.
+3. **Class Structure**: Inherit from `arcade.Window`.
+4. **Input**: Use `on_key_press(symbol, modifiers)`.
+"""
 
 
 def planner(
@@ -107,6 +118,22 @@ def generate_code(
         "You have access to tools to look up the latest API documentation."
     )
 
+    math_injection = ""
+    gdd_lower = gdd_context.lower()
+
+    # 優先權判斷：如果是撞球類，注入物理公式；如果是網格類，注入網格公式
+    if any(k in gdd_lower for k in ["pool", "billiard", "physics", "ball", "shooter", "tank"]):
+        print("💡 偵測到 Top-Down 物理類遊戲，注入物理數學公式...")
+        math_injection = PHYSICS_MATH_CHEAT_SHEET
+
+    elif any(k in gdd_lower for k in ["grid", "2048", "tetris", "snake", "puzzle", "board"]):
+        print("💡 偵測到網格類遊戲，注入網格數學公式...")
+        math_injection = GRID_MATH_CHEAT_SHEET
+
+    elif any(k in gdd_lower for k in ["jump", "platform", "gravity", "flappy", "mario"]):
+        print("💡 偵測到平台跳躍類遊戲，注入重力與跳躍公式...")
+        math_injection = PLATFORMER_CHEAT_SHEET
+
     user_input = f"""
     Write the full Python code for this game.
 
@@ -118,13 +145,21 @@ def generate_code(
 
     [TECHNICAL PLAN & CONSTRAINTS]
     {plan}
-
-    REMINDER: 
-    - Use `get_arcade_2_x_api_conventions` to check drawing functions.
-    - Use `search_arcade_kb` to find examples for specific mechanics in the plan.
+    
+    [RULES & HELPERS]
+    {ARCADE_2_LEGACY_INSTRUCTION}
+    
+    {math_injection}
+    
+    INSTRUCTIONS:
+    1. Output valid Python code only.
+    2. Ensure `import arcade` works for version 2.6.17.
+    3. If implementing a grid, STRICTLY follow the math formula provided above.
+    4. Ensure the game window is centered and elements are visible.
+    5. WRAP the main execution logic in 'if __name__ == "__main__":'.
     """
 
-    print(f"🚀 正在調用 LLM (帶有工具支持)...")
+    # print(f"🚀 正在調用 LLM (帶有工具支持)...")
 
     # 4. 動態組合 Nudge 指令
     # 我們把「通用指令」加上「Planner 產生的計畫」作為最強的提示
@@ -145,10 +180,7 @@ def generate_code(
         provider=provider,
         model=model,
         temperature=temperature,
-        max_tokens=8192,
-        tools=ARCADE_TOOLS,
-        rag_instance=rag,
-        tool_additional_instruction=dynamic_instruction
+        max_tokens=8192
     )
 
 def generate_fuzzer_logic(

@@ -148,10 +148,18 @@ Task: Write a "Monkey Bot" logic block to stress-test the Arcade game.
 2. **Parameters**: Ensure `button` and `modifiers` are passed as integers (e.g., `arcade.MOUSE_BUTTON_LEFT`).
 3. **Coordinates**: Use random coordinates within `SCREEN_WIDTH` and `SCREEN_HEIGHT`.
 4. **Logic**: Simulate random keys and mouse drags (press -> release) to trigger physics impulses.
+5. **Context**: Assume `window` is available (e.g. `window = self` if inside a class, or the global window variable).
+
+【CRITICAL SAFETY RULES】:
+- **NEVER** define a class (e.g. `class MonkeyBot`).
+- **NEVER** define `main()` function.
+- **NEVER** call `arcade.run()`. This causes infinite recursion windows.
+- **OUTPUT ONLY** the if/else logic statements indented for use inside an `update` loop.
 
 【EXAMPLE OUTPUT FORMAT】:
 ```python
 # Random Keyboard Input (Arcade 2.x)
+import random
 if random.random() < 0.1:
     keys = [arcade.key.LEFT, arcade.key.RIGHT, arcade.key.UP, arcade.key.SPACE]
     window.on_key_press(random.choice(keys), 0)
@@ -163,6 +171,7 @@ if random.random() < 0.05:
     window.on_mouse_press(cx, cy, arcade.MOUSE_BUTTON_LEFT, 0)
     # End Drag with Offset
     window.on_mouse_release(cx + random.randint(-200, 200), cy + random.randint(-200, 200), arcade.MOUSE_BUTTON_LEFT, 0)
+```
 """
 
 COMMON_DEVELOPER_INSTRUCTION = """

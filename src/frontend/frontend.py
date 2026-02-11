@@ -15,7 +15,7 @@ app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
 
 # Supporting providers
-PROVIDERS = ["mistral", "openai", "groq", "google", "ollama", "deepseek", "inception"]
+PROVIDERS = ["mistral", "openai", "groq", "google", "ollama", "deepseek", "inception", "claude"]
 
 @app.route("/", methods=["GET", "POST"])
 def index():

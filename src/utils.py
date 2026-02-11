@@ -41,6 +41,11 @@ def get_client_config(provider: str) -> dict | None:
             "api_key": config.INCEPTION_API_KEY,
             "base_url": "https://api.inceptionlabs.ai/v1"
         }
+    elif provider == "claude":
+        return {
+            "api_key": config.CLAUDE_API_KEY,
+            "base_url": "https://api.anthropic.com/v1/"
+        }
     return None
 
 

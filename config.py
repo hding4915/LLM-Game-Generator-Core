@@ -52,6 +52,7 @@ class Config:
     MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
     DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
     INCEPTION_API_KEY = os.getenv("INCEPTION_API_KEY")
+    CLAUDE_API_KEY = os.getenv("CLAUDE_API_KEY")
     # LLM model names
     GROQ_MODEL_NAME = os.getenv("GROQ_MODEL_NAME", "llama3-8b-8192")
     GOOGLE_MODEL_NAME = os.getenv("GOOGLE_MODEL_NAME", "gemini-2.5-flash")
@@ -59,6 +60,7 @@ class Config:
     MISTRAL_MODEL_NAME = os.getenv("MISTRAL_MODEL_NAME", "codestral-lastest")
     DEEPSEEK_MODEL_NAME = os.getenv("DEEPSEEK_MODEL_NAME", "deepseek-chat")
     INCEPTION_MODEL_NAME = os.getenv("INCEPTION_MODEL_NAME", "inception")
+    CLAUDE_MODEL_NAME = os.getenv("CLAUDE_MODEL_NAME", "clause")
 
     # OLLAMA
     OLLAMA_BASE_URL =  os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
