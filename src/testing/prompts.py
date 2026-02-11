@@ -1,6 +1,5 @@
-# Reviewer / Fixer Prompt (For Syntax & Runtime Errors - Arcade 3.0)
 FIXER_PROMPT = """
-You are a Python Arcade 3.0 Expert and QA Engineer.
+You are a Python Arcade 2.6.x (Legacy) Expert and QA Engineer.
 I tried to run an Arcade script, but it crashed or had errors.
 
 【BROKEN CODE】:
@@ -10,85 +9,89 @@ I tried to run an Arcade script, but it crashed or had errors.
 {error}
 
 【TASK】:
-1. Analyze the error.
-   - **AttributeError: module 'arcade' has no attribute 'draw_rectangle_filled'**:
-     - **CAUSE**: You are using the Old Arcade 2.x API.
-     - **FIX**: Change to `arcade.draw_rect_filled(arcade.XYWH(x, y, w, h), color)`.
-     - **CRITICAL**: You MUST wrap coordinates in `arcade.XYWH(...)` or `arcade.LBWH(...)`.
+1. Analyze the error based on Arcade 2.x conventions.
+   - **AttributeError: module 'arcade' has no attribute 'draw_rect_filled'**:
+     - **CAUSE**: You are accidentally using Arcade 3.0 API.
+     - **FIX**: Change to `arcade.draw_rectangle_filled(center_x, center_y, width, height, color)`.
+     - **CRITICAL**: Do NOT use `arcade.XYWH` or `arcade.LBWH`. Use direct float/int parameters.
 
-   - **TypeError: Texture.__init__() takes 2 positional arguments...**:
-     - **CAUSE**: Arcade 3.0 Texture constructor changed.
-     - **FIX**: Change `arcade.Texture("name", image)` to `arcade.Texture(image)`.
+   - **TypeError: Texture.__init__() missing 1 required positional argument: 'name'**:
+     - **CAUSE**: In Arcade 2.x, the Texture constructor REQUIRES a unique name string.
+     - **FIX**: Change `arcade.Texture(image)` to `arcade.Texture(f"unique_name_{id(self)}", image)`.
 
-   - **TypeError: update() takes 1 positional argument but 2 were given**:
-     - **CAUSE**: `arcade.SpriteList.update()` passes `delta_time` automatically in 3.0.
-     - **FIX**: Update signature to `def update(self, delta_time: float = 1/60):`.
+   - **TypeError: update() missing 1 required positional argument: 'delta_time'**:
+     - **CAUSE**: Your Window class calls `update(delta_time)` but the Sprite's method doesn't accept it, OR vice-versa.
+     - **FIX**: In Arcade 2.x, `Sprite.update()` typically takes NO arguments. Ensure it matches: `def update(self):`.
 
    - **AttributeError: 'NoneType' object has no attribute ...**:
-     - **CAUSE**: Accessing `.value`, `.row`, `.is_mine` on a grid cell that is `None`.
-     - **SCENARIO**: `if grid[r][c].is_mine:` where `grid[r][c]` is None.
-     - **FIX**: `if grid[r][c] is not None and grid[r][c].is_mine:`
+     - **CAUSE**: Accessing attributes on a grid cell or sprite that is `None`.
+     - **FIX**: Add `if grid[r][c] is not None:` or `if self.player is not None:` checks before access.
 
-2. **CRITICAL INSTRUCTION**: Do NOT just try/except the error. You MUST fix the API usage or add `is not None` checks.
+   - **Visuals not showing/Screen flickering**:
+     - **CAUSE**: Missing `arcade.start_render()` in `on_draw`.
+     - **FIX**: Ensure `arcade.start_render()` is the first line in the `on_draw` method.
+
+2. **CRITICAL INSTRUCTION**: You MUST fix the API to be compatible with Arcade 2.6.x. Do NOT use 3.0 features.
 
 3. Output the FULL, CORRECTED code.
 
 Return the fixed code inside a ```python ... ``` block.
 """
 
-# Logic Reviewer Prompt (Strict Mode - Arcade 3.0)
 LOGIC_REVIEW_PROMPT = """
-You are a Senior Game Developer reviewing Arcade 3.0 code.
+You are a Senior Game Developer reviewing Arcade 2.6.x (Legacy) code.
 Analyze the following code for LOGIC ERRORS and API COMPATIBILITY.
 
 【CODE】:
 {code}
 
 【CHECKLIST】:
-1. **API Compatibility (CRITICAL)**:
-   - Search for `draw_rectangle_filled`. If found -> **FAIL** (Must be `draw_rect_filled`).
-   - Search for `draw_text`. Ensure it uses `anchor_x` instead of `align` (if applicable in specific contexts, but `draw_text` is mostly safe).
-   - Search for `Texture("name", img)`. If found -> **FAIL**.
+1. **API Compatibility (CRITICAL - NO 3.0 ALLOWED)**:
+   - Search for `draw_rect_filled` or `XYWH`. If found -> **FAIL** (Must be `draw_rectangle_filled` with direct args).
+   - Search for `self.clear()`. If found -> **FAIL** (Must use `arcade.start_render()`).
+   - Search for `arcade.Texture(img)` without a name string -> **FAIL**.
 
-2. **Grid Safety**:
+2. **Grid & Object Safety**:
    - Search for `grid[x][y].attr`. 
-   - Is there an `if grid[x][y]:` or `if cell is not None:` check IMMEDIATELY before it?
-   - If NO check exists, you MUST report **FAIL**.
+   - Is there a `None` check (`if grid[x][y]:`) immediately before it?
+   - If NO check exists, report **FAIL**.
 
-3. **Physics/Update**:
-   - Is `self.space.step(1/60)` called? (For Pymunk).
-   - Is `self.all_sprites.update()` called?
-   - Do Sprite `update` methods accept `delta_time`?
+3. **Rendering Pipeline**:
+   - Does `on_draw` begin with `arcade.start_render()`? If NO -> **FAIL**.
+
+4. **Update Logic**:
+   - Does `self.all_sprites.update()` exist in `on_update`?
+   - Do Sprite `update` methods follow the `def update(self):` signature (no delta_time)?
 
 【OUTPUT】:
-If playable and SAFE, output: PASS
-If unsafe (Old API or missing None checks), output: FAIL: [Reason]
+**If playable and adheres to Arcade 2.x standards, output only: "PASS", do not output any other texts.**
+If unsafe or using Arcade 3.0 API, output: FAIL: [Reason]
 """
 
-# Logic Fixer Prompt (Arcade 3.0)
 LOGIC_FIXER_PROMPT = """
-You are a Python Arcade Developer.
-The code has logical issues (e.g., crashes on empty cells, objects not moving) or is using the OLD API.
+You are a Python Arcade 2.6.x Developer.
+The code has logical issues or is incorrectly using the Arcade 3.0 API.
 
-【Error Messages】:
+【Error Messages / Logic Issues】:
 {error}
 
 【CODE】:
 {code}
 
 【TASK】:
-1. **Fix Drawing API (Top Priority)**:
-   - Replace `draw_rectangle_filled(x, y, w, h, color)` with `arcade.draw_rect_filled(arcade.XYWH(x, y, w, h), color)`.
-   - Ensure all shapes use the new `arcade.XYWH` or `arcade.LBWH` structs.
+1. **Downgrade/Fix Drawing API**:
+   - Convert any `arcade.draw_rect_filled(arcade.XYWH(...))` to `arcade.draw_rectangle_filled(x, y, w, h, color)`.
+   - Ensure `arcade.start_render()` is used instead of `self.clear()`.
 
-2. **Fix Grid/NoneType Errors**:
-   - Scan ALL grid access `grid[r][c].attr`.
-   - Wrap them in `if grid[r][c] is not None: ...`.
-   - Fix loops where `None` cells might be accessed.
+2. **Fix Texture Initialization**:
+   - Ensure all `arcade.Texture` calls provide a unique string name: `arcade.Texture(name, pil_image)`.
 
-3. **Fix Controls/Physics**: 
-   - Ensure `on_update` calls `self.all_sprites.update()`.
-   - For Drag-and-Shoot: Ensure `on_mouse_release` calculates vector and applies force/velocity.
+3. **Fix Grid/NoneType Errors**:
+   - Scan all `grid[r][c].attr` and wrap in `if grid[r][c] is not None:`.
+
+4. **Fix Physics & Updates**: 
+   - Ensure `on_update` handles `delta_time` for `pymunk` (e.g., `space.step(1/60)`), but sprites use simple `update()`.
+   - For input handling, ensure `on_mouse_press` and `on_mouse_release` use the correct `button` and `modifiers` integers.
 
 4. Output the FULL corrected code in ```python ... ``` block.
 """

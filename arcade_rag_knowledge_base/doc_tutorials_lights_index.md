@@ -1,10 +1,9 @@
-Source: doc/tutorials/lights/index.rst
+Source: Arcade 2.6.17 doc/tutorials/lights/index.rst
+
+# Lights Tutorial
 
 
-# Lights
-
-
-This tutorial needs some documentation. Feel free to submit a PR to improve it!
+(To be done.)
 
     :caption: light_demo.py
     :linenos:

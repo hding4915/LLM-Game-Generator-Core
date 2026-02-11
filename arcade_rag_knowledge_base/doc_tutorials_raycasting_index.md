@@ -1,4 +1,4 @@
-Source: doc/tutorials/raycasting/index.rst
+Source: Arcade 2.6.17 doc/tutorials/raycasting/index.rst
 
 
 
@@ -30,12 +30,12 @@ The listing for this starting program is available at raycasting_start.
     The website makes it easy to experiment with shaders, and those shaders can be run
     using the Arcade library.
 
-Now, let's create a shader. We can program shaders using Arcade's ``arcade.experimental.Shadertoy``
+Now, let's create a shader. We can program shaders using Arcade's `Shadertoy` class.
 
 We'll modify our prior program to import the Shadertoy class:
 
     :caption: Import Shadertoy
-    :lines: 4
+    :lines: 5
 
 Next, we'll need some shader-related variables. In addition to a variable to hold the shader, we are also
 going to need to keep track of a couple **frame buffer objects** (FBOs). You can store image data in an
@@ -55,7 +55,7 @@ We will use the ``channel0`` variable to hold our barriers that can cast shadows
 We will use the ``channel1`` variable to hold the
 ground, bombs, or anything we want to be hidden by shadows.
 
-    :caption: Create & initialize shader variables
+    :caption: Create shader variables
     :pyobject: MyGame.__init__
     :emphasize-lines: 4-8
 
@@ -80,7 +80,7 @@ output.
 How does this shader work?
 For each point in our output, this ``mainImage`` function runs and
 calculates our output color. For a window that is 800x600 pixels, this function runs
-480,000 times for each frame. Modern GPUs can have anywhere between 500-5,000 "threads"
+480,000 times for each frame. Modern GPUs can have anywhere between 500-5,000 "cores"
 that can calculate these points in parallel for faster processing.
 
 Our current coordinate we are calculating we've brought in as a parameter called ``fragCoord``.
@@ -273,7 +273,7 @@ this pixel.
 * raycasting_step_04_gl |larr| Full listing of where we are right now with the GLSL program
 * raycasting_step_04_gl_diff |larr| What we changed to get here
 
-## Step 3: Creating a Light
+## Step 5: Cast the Shadows
 
    :width: 75%
 
@@ -299,9 +299,7 @@ With an N of 10:
    :width: 40%
 
 We can use an N of 500 to get a good quality shadow. We might need more if
-your barriers are small, and the light range is large. Note that the effect
-gets increasingly expensive the higher N is. Some tweaks are likely needed
-to find the lowest N that still looks good.
+your barriers are small, and the light range is large.
 
    :width: 40%
 
@@ -345,17 +343,16 @@ see what is casting the shadows.
 * raycasting_step_06_gl |larr| Full listing of where we are right now with the GLSL program
 * raycasting_step_06_gl_diff |larr| What we changed to get here
 
-## Step 2: Simple Shader Experiment
+## Step 7 - Support window resizing
 
 What if you need to resize the window? First enable resizing:
 
 You'll need to enable resizing in the window's ``__init__``:
 
-    :pyobject: MyGame.__init__
     :caption: Enable resizing
     :language: python
-    :lines: 1-2
-    :emphasize-lines: 2
+    :lines: 24-27
+    :emphasize-lines: 4
 
 Then we need to override the ``Window.resize`` method to also resize the shadertoy:
 
@@ -379,8 +376,8 @@ screen as something for the GUI.
     :emphasize-lines: 17-19, 23-24
 
 Next up, we need to draw and use the cameras. This complicates our shader as it doesn't
-care about the scrolling, so we have to pass it a position not affected by the camera position.
-Therefore, we subtract it out.
+care about the scrolling, so we have to pass it a position not effected by the camera position.
+Thus we subtract it out.
 
     :caption: MyGame.on_draw
     :pyobject: MyGame.on_draw
@@ -394,16 +391,7 @@ When we update, we need to scroll the camera to where the user is:
     :linenos:
     :emphasize-lines: 7-8
 
-We need to implement the ``scroll_to_player`` method ourselves.
-
-First, we import pyglet's `~pyglet.math.Vec2` class to
-make the math faster to implement:
-
-    :caption: Import pyglet's 2D vector class to help with math
-    :lines: 1-5
-    :emphasize-lines: 2
-
-Then, we implement the ``MyGame.scroll_to_player`` method:
+We need that new function:
 
     :caption: MyGame.scroll_to_player
     :pyobject: MyGame.scroll_to_player

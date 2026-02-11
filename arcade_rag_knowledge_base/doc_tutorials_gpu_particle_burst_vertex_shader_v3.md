@@ -1,4 +1,4 @@
-Source: doc/tutorials/gpu_particle_burst/vertex_shader_v3.rst
+Source: Arcade 2.6.17 doc/tutorials/gpu_particle_burst/vertex_shader_v3.rst
 
 :orphan:
 

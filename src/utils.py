@@ -2,7 +2,7 @@ import openai
 import requests
 import json
 from config import config
-from src.generation.arcade_tools import get_arcade_3_0_api_conventions, search_arcade_kb
+from src.generation.arcade_tools import get_arcade_2_x_api_conventions, search_arcade_kb
 from typing import List, Dict, Any, Optional
 
 from src.rag_service.rag import RagService
@@ -100,14 +100,12 @@ def call_ollama(
     if not base_url:
         base_url = "http://localhost:11434"
 
-    # 清理 URL，確保指向 /api/chat
     api_url = base_url.rstrip("/")
-    # 如果原本設定包含 /v1 (為了相容 OpenAI)，要把它拿掉改成原生路徑
+
     if api_url.endswith("/v1"):
         api_url = api_url[:-3]
     api_url = f"{api_url}/api/chat"
 
-    # 設定 Request Body
     payload = {
         "model": model,
         "messages": [
@@ -135,7 +133,7 @@ def call_ollama(
         response = requests.post(
             api_url,
             json=payload,
-            headers=headers,  # 帶上 headers
+            headers=headers,
             timeout=300
         )
 
@@ -157,15 +155,15 @@ def call_ollama(
 
 def execute_tool(tool_name: str, args: dict, rag_instance: Any = None) -> str:
     """
-    根據工具名稱執行對應的本地函數。
+    根據工具名稱執行對應的本地函數 (Arcade 2.x 版本)。
     """
     try:
-        from src.generation.arcade_tools import get_arcade_3_0_api_conventions, search_arcade_kb
+        from src.generation.arcade_tools import get_arcade_2_x_api_conventions, search_arcade_kb
     except ImportError:
-        return f"Error: Could not import game_generator tools. Check project structure."
+        return f"Error: Could not import Arcade 2.x tools. Check project structure."
 
-    if tool_name == "get_arcade_3_0_api_conventions":
-        return get_arcade_3_0_api_conventions()
+    if tool_name == "get_arcade_2_x_api_conventions":
+        return get_arcade_2_x_api_conventions()
 
     if tool_name == "search_arcade_kb":
         query = args.get("query", "")
@@ -173,8 +171,7 @@ def execute_tool(tool_name: str, args: dict, rag_instance: Any = None) -> str:
             return "Error: RAG instance is not initialized or passed correctly."
         return search_arcade_kb(query=query, rag=rag_instance)
 
-    return f"Error: Tool '{tool_name}' not found."
-
+    return f"Error: Tool '{tool_name}' not found. Did you mean 'get_arcade_2_x_api_conventions'?"
 
 def call_llm(
         system_prompt: str,
@@ -185,7 +182,7 @@ def call_llm(
         max_tokens: int = 8192,
         tools: Optional[List[Dict[str, Any]]] = None,
         rag_instance: Any = None,
-        tool_additional_instruction: str = None  # [新增參數] 允許外部注入特定的提醒
+        tool_additional_instruction: str = None
 ) -> str:
     """
     [統一入口] 支援多種 LLM Provider 並整合 Tool Use 迴圈。
@@ -223,7 +220,6 @@ def call_llm(
             {"role": "user", "content": user_prompt}
         ]
 
-        # Tool Loop: 最多允許 5 次往返
         for loop_index in range(5):
             kwargs = {
                 "model": model,
@@ -240,11 +236,9 @@ def call_llm(
             response = client.chat.completions.create(**kwargs)
             assistant_message = response.choices[0].message
 
-            # 1. 檢查是否有工具呼叫
             if not assistant_message.tool_calls:
                 return assistant_message.content if assistant_message.content else ""
 
-            # 2. 處理工具呼叫
             tool_calls_list = []
             for tc in assistant_message.tool_calls:
                 tool_calls_list.append({
@@ -262,7 +256,6 @@ def call_llm(
                 "tool_calls": tool_calls_list
             })
 
-            # 3. 執行所有工具
             for tc in tool_calls_list:
                 function_name = tc["function"]["name"]
                 try:
@@ -270,7 +263,7 @@ def call_llm(
                 except json.JSONDecodeError:
                     function_args = {}
 
-                print(f"🛠️ [Tool Call] 執行工具: {function_name} | 參數: {function_args}")
+                print(f"🛠️ [Arcade 2.x Tool Call] 執行工具: {function_name} | 參數: {function_args}")
                 observation = execute_tool(function_name, function_args, rag_instance=rag_instance)
                 print(f"   -> Result: {observation[:200]}..." if observation else "   -> Result: (Empty)")
 
@@ -281,13 +274,12 @@ def call_llm(
                     "content": observation
                 })
 
-            # [Nudge Logic] 使用傳入的參數，如果沒傳則使用通用提醒
+            # [Nudge Logic]
             default_instruction = (
-                "Tool outputs provided above. "
-                "Please generate the code now based on these findings."
+                "Arcade 2.x tool outputs provided above. "
+                "Please generate the code now using Arcade 2.x legacy conventions (e.g., arcade.start_render())."
             )
 
-            # 優先使用外部傳入的指令，否則使用預設
             final_instruction = tool_additional_instruction if tool_additional_instruction else default_instruction
 
             messages.append({

@@ -1,4 +1,4 @@
-Source: doc/tutorials/views/02_views.rst
+Source: Arcade 2.6.17 doc/tutorials/views/02_views.rst
 
 :orphan:
 

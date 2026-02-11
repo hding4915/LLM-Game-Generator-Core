@@ -1,4 +1,4 @@
-Source: doc/tutorials/raycasting/step_01.rst
+Source: Arcade 2.6.17 doc/tutorials/raycasting/step_01.rst
 
 :orphan:
 

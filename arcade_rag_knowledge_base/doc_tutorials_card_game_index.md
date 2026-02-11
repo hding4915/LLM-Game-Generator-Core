@@ -1,8 +1,8 @@
-Source: doc/tutorials/card_game/index.rst
+Source: Arcade 2.6.17 doc/tutorials/card_game/index.rst
 
 
 
-# Solitaire
+# Solitaire Tutorial
 
 
 This solitaire tutorial takes you though the basics of creating a card game, and
@@ -44,7 +44,7 @@ Card Class
 ~~~~~~~~~~
 
 Next up, we'll create a card class. The card class is a subclass of
-:py`~arcade.Sprite`. It will have attributes for the suit and value of the
+``arcade.Sprite``. It will have attributes for the suit and value of the
 card, and auto-load the image for the card based on that.
 
 We'll use the entire image as the hit box, so we don't need to go through the
@@ -228,7 +228,7 @@ Run the program, and see if the mats appear:
 * solitaire_04 |larr| Full listing of where we are right now
 * solitaire_04_diff |larr| What we changed to get here
 
-## Create Card Sprites
+## Snap Cards to Piles
 
 Right now, you can drag the cards anywhere. They don't have to go onto a
 pile. Let's add code that "snaps" the card onto a pile. If we don't drop
@@ -381,7 +381,7 @@ Test out your program, and see if the cards are being fanned out properly.
 * solitaire_07 |larr| Full listing of where we are right now
 * solitaire_07_diff |larr| What we changed to get here
 
-## Create Card Sprites
+## Pick Up Card Stacks
 
 How do we pick up a whole stack of cards? When the mouse is pressed, we need
 to figure out what pile the card is in.
@@ -401,7 +401,7 @@ with the mouse and move them around.
 * solitaire_08 |larr| Full listing of where we are right now
 * solitaire_08_diff |larr| What we changed to get here
 
-## Draw Pile Mats
+## Deal Out Cards
 
 We can deal the cards into the seven middle piles by adding some code to the
 ``setup`` method. We need to change the list each card is part of, along with
@@ -491,7 +491,7 @@ so we can go through it again.
     :caption: Flipping of Bottom Deck
     :linenos:
     :pyobject: MyGame.on_mouse_press
-    :emphasize-lines: 16-34, 59-74
+    :emphasize-lines: 15-33, 56-71
 
 Test
 ~~~~

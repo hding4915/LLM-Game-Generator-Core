@@ -81,14 +81,14 @@ def main():
 
 
 if __name__ == "__main__":
-    # main()
-    print(SOURCE_DIR)
-    config = RagConfig(collection_name=COLLECTION_NAME)
-    rag = RagService(rag_config=config)
-
-    result = rag.query("how to move Sprite")
-
-    print(result)
-    print(result['documents'])
-    print(result['metadatas'][0])
-    print(result['metadatas'][0][0]['file_name'])
+    main()
+    # print(SOURCE_DIR)
+    # config = RagConfig(collection_name=COLLECTION_NAME)
+    # rag = RagService(rag_config=config)
+    #
+    # result = rag.query("how to move Sprite")
+    #
+    # print(result)
+    # print(result['documents'])
+    # print(result['metadatas'][0])
+    # print(result['metadatas'][0][0]['file_name'])

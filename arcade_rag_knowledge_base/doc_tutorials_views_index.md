@@ -1,4 +1,4 @@
-Source: doc/tutorials/views/index.rst
+Source: Arcade 2.6.17 doc/tutorials/views/index.rst
 
 
 
@@ -15,13 +15,13 @@ You can use this to support adding screens such as:
 * Game over screens
 * Pause screens
 
-The :py`~arcade.View` class is a lot like the :py`~arcade.Window` class that you are already used
-to. The :py`~arcade.View` class has methods for ``on_update`` and ``on_draw`` just like
-:py`~arcade.Window`. We can change the current view to quickly change the code that is
+The ``View`` class is a lot like the ``Window`` class that you are already used
+to. The ``View`` class has methods for ``on_update`` and ``on_draw`` just like
+``Window``. We can change the current view to quickly change the code that is
 managing what is drawn on the window and handling user input.
 
 If you know ahead of time you want to use views, you can build your code around
-the view_examples. However, typically a programmer wants to add these
+the view-examples. However, typically a programmer wants to add these
 items to a game that already exists.
 
 This tutorial steps you through how to do just that.
@@ -41,7 +41,7 @@ class:
 
     class MyGame(arcade.Window):
 
-Change it to derive from :py`arcade.View` instead of :py`arcade.Window`.
+Change it to derive from ``arcade.View`` instead of ``arcade.Window``.
 I also suggest using "View" as part of the name:
 
 
@@ -49,7 +49,7 @@ I also suggest using "View" as part of the name:
 
     class GameView(arcade.View):
 
-This will require a couple other updates. The :py`~arcade.View` class does not control
+This will require a couple other updates. The ``View`` class does not control
 the size of the window, so we'll need to take that out of the call to the
 parent class. Change:
 
@@ -65,21 +65,21 @@ to:
 
     super().__init__()
 
-The :py`~arcade.Window` class still controls if the mouse is visible or not, so to hide
-the mouse, we'll need to use the ``window`` attribute that is part of the :py`~arcade.View`
+The ``Window`` class still controls if the mouse is visible or not, so to hide
+the mouse, we'll need to use the ``window`` attribute that is part of the ``View``
 class. Change:
 
 
 ```python
 
-    self.set_mouse_cursor_visible(False)
+    self.set_mouse_visible(False)
 
 to:
 
 
 ```python
 
-    self.window.set_mouse_cursor_visible(False)
+    self.window.set_mouse_visible(False)
 
 Now in the ``main`` function, instead of just creating a window, we'll create
 a window, a view, and then show that view.
@@ -108,7 +108,7 @@ it:
 
     class InstructionView(arcade.View):
 
-Then we need to define the :py:meth:`~arcade.View.on_show_view` method that will be run once when we
+Then we need to define the ``on_show_view`` method that will be run once when we
 switch to this view. In this case, we don't need to do much, just set the
 background color. If the game is one that scrolls, we'll also need to reset
 the viewport so that (0, 0) is back to the lower-left coordinate.

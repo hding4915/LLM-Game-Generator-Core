@@ -1,4 +1,4 @@
-# Arcade Example: pymunk_joint_builder.py
+# Arcade 2.6.17 Example: pymunk_joint_builder.py
 Source: arcade/examples/pymunk_joint_builder.py
 
 ```python
@@ -12,10 +12,11 @@ import arcade
 import pymunk
 import timeit
 import math
+import os
 
-WINDOW_WIDTH = 1200
-WINDOW_HEIGHT = 800
-WINDOW_TITLE = "Pymunk 2 Example"
+SCREEN_WIDTH = 1200
+SCREEN_HEIGHT = 800
+SCREEN_TITLE = "Pymunk 2 Example"
 
 """
 Key bindings:
@@ -36,19 +37,15 @@ Right-click, fire coin
 
 class PhysicsSprite(arcade.Sprite):
     def __init__(self, pymunk_shape, filename):
-        super().__init__(
-            filename,
-            center_x=pymunk_shape.body.position.x,
-            center_y=pymunk_shape.body.position.y,
-        )
+        super().__init__(filename, center_x=pymunk_shape.body.position.x, center_y=pymunk_shape.body.position.y)
         self.pymunk_shape = pymunk_shape
 
 
 class CircleSprite(PhysicsSprite):
     def __init__(self, pymunk_shape, filename):
         super().__init__(pymunk_shape, filename)
-        self.width = pymunk_shape.radius * 4
-        self.height = pymunk_shape.radius * 4
+        self.width = pymunk_shape.radius * 2
+        self.height = pymunk_shape.radius * 2
 
 
 class BoxSprite(PhysicsSprite):
@@ -58,13 +55,20 @@ class BoxSprite(PhysicsSprite):
         self.height = height
 
 
-class GameView(arcade.View):
+class MyApplication(arcade.Window):
     """ Main application class. """
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, width, height, title):
+        super().__init__(width, height, title)
 
-        self.background_color = arcade.color.DARK_SLATE_GRAY
+        # Set the working directory (where we expect to find files) to the same
+        # directory this .py file is in. You can leave this out of your own
+        # code, but it is needed to easily run the examples using "python -m"
+        # as mentioned at the top of this program.
+        file_path = os.path.dirname(os.path.abspath(__file__))
+        os.chdir(file_path)
+
+        arcade.set_background_color(arcade.color.DARK_SLATE_GRAY)
 
         # -- Pymunk
         self.space = pymunk.Space()
@@ -93,12 +97,7 @@ class GameView(arcade.View):
         # Create the floor
         self.floor_height = 80
         body = pymunk.Body(body_type=pymunk.Body.STATIC)
-        shape = pymunk.Segment(
-            body,
-            (0, self.floor_height),
-            (WINDOW_WIDTH, self.floor_height),
-            0.0,
-        )
+        shape = pymunk.Segment(body, [0, self.floor_height], [SCREEN_WIDTH, self.floor_height], 0.0)
         shape.friction = 10
         self.space.add(shape, body)
         self.static_lines.append(shape)
@@ -138,18 +137,18 @@ class GameView(arcade.View):
         # arcade.draw_text(output, 10, 20, arcade.color.WHITE, 14)
         # Display timings
         output = f"Processing time: {self.processing_time:.3f}"
-        arcade.draw_text(output, 20, WINDOW_HEIGHT - 20, arcade.color.WHITE)
+        arcade.draw_text(output, 20, SCREEN_HEIGHT - 20, arcade.color.WHITE)
 
         output = f"Drawing time: {self.draw_time:.3f}"
-        arcade.draw_text(output, 20, WINDOW_HEIGHT - 40, arcade.color.WHITE)
+        arcade.draw_text(output, 20, SCREEN_HEIGHT - 40, arcade.color.WHITE)
 
         self.draw_time = timeit.default_timer() - draw_start_time
 
         output = f"Mode: {self.mode}"
-        arcade.draw_text(output, 20, WINDOW_HEIGHT - 60, arcade.color.WHITE)
+        arcade.draw_text(output, 20, SCREEN_HEIGHT - 60, arcade.color.WHITE)
 
         output = f"Physics: {self.physics}"
-        arcade.draw_text(output, 20, WINDOW_HEIGHT - 80, arcade.color.WHITE)
+        arcade.draw_text(output, 20, SCREEN_HEIGHT - 80, arcade.color.WHITE)
 
     def make_box(self, x, y):
         size = 45
@@ -161,12 +160,7 @@ class GameView(arcade.View):
         shape.friction = 0.3
         self.space.add(body, shape)
 
-        sprite = BoxSprite(
-            shape,
-            ":resources:images/tiles/boxCrate_double.png",
-            width=size,
-            height=size,
-        )
+        sprite = BoxSprite(shape, ":resources:images/tiles/boxCrate_double.png", width=size, height=size)
         self.sprite_list.append(sprite)
 
     def make_circle(self, x, y):
@@ -190,7 +184,7 @@ class GameView(arcade.View):
         if self.shape_1 is None:
             print("Shape 1 Selected")
             self.shape_1 = shape_selected
-        elif self.shape_2 is None and self.shape_1.shape != shape_selected.shape:
+        elif self.shape_2 is None:
             print("Shape 2 Selected")
             self.shape_2 = shape_selected
             joint = pymunk.PinJoint(self.shape_1.shape.body, self.shape_2.shape.body)
@@ -199,9 +193,6 @@ class GameView(arcade.View):
             self.shape_1 = None
             self.shape_2 = None
             print("Joint Made")
-        else:
-            print("Shapes Deselected")
-            self.shape_1 = self.shape_2 = None
 
     def make_damped_spring(self, x, y):
         shape_selected = self.get_shape(x, y)
@@ -211,23 +202,15 @@ class GameView(arcade.View):
         if self.shape_1 is None:
             print("Shape 1 Selected")
             self.shape_1 = shape_selected
-        elif self.shape_2 is None and self.shape_1.shape != shape_selected.shape:
+        elif self.shape_2 is None:
             print("Shape 2 Selected")
             self.shape_2 = shape_selected
-            joint = pymunk.DampedSpring(
-                self.shape_1.shape.body,
-                self.shape_2.shape.body,
-                (0, 0), (0, 0),
-                45, 300, 30,
-            )
+            joint = pymunk.DampedSpring(self.shape_1.shape.body, self.shape_2.shape.body, (0, 0), (0, 0), 45, 300, 30)
             self.space.add(joint)
             self.joints.append(joint)
             self.shape_1 = None
             self.shape_2 = None
             print("Joint Made")
-        else:
-            print("Shapes deselected")
-            self.shape_1 = self.shape_2 = None
 
     def get_shape(self, x, y):
         # See if we clicked on anything
@@ -336,29 +319,14 @@ class GameView(arcade.View):
         for sprite in self.sprite_list:
             sprite.center_x = sprite.pymunk_shape.body.position.x
             sprite.center_y = sprite.pymunk_shape.body.position.y
-            # Reverse angle because pymunk rotates ccw
-            sprite.angle = -math.degrees(sprite.pymunk_shape.body.angle)
+            sprite.angle = math.degrees(sprite.pymunk_shape.body.angle)
 
         # Save the time it took to do this.
         self.processing_time = timeit.default_timer() - start_time
 
 
-def main():
-    """ Main function """
-    # Create a window class. This is what actually shows up on screen
-    window = arcade.Window(WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_TITLE)
+window = MyApplication(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
 
-    # Create the GameView
-    game = GameView()
-
-    # Show GameView on screen
-    window.show_view(game)
-
-    # Start the arcade game loop
-    arcade.run()
-
-
-if __name__ == "__main__":
-    main()
+arcade.run()
 
 ```

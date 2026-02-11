@@ -1,7 +1,7 @@
-Source: doc/tutorials/shader_toy_glow/index.rst
+Source: Arcade 2.6.17 doc/tutorials/shader_toy_glow/index.rst
 
 
-# Shader Toy - Glow
+# Shader Toy Tutorial - Glow
 
    :width: 60%
 
@@ -35,13 +35,13 @@ This is simple program that just opens a basic Arcade window. We'll add a shader
     :caption: Open a window
     :linenos:
 
-## Step 1: Open a window
+## Step 2: Load a shader
 
 This program will load a GLSL program and display it. We'll write our shader in the next step.
 
     :caption: Run a shader
     :linenos:
-    :emphasize-lines: 2, 12-15, 19
+    :emphasize-lines: 2, 11-14, 18
 
 
    The proper way to read in a file to a string is using a **with** statement.
@@ -138,7 +138,7 @@ We can also change our color to orange.
     :caption: Adjusts fade speed
     :language: glsl
     :linenos:
-    :emphasize-lines: 19-20, 22-23
+    :emphasize-lines: 15-16, 18-19
 
    :width: 60%
 
@@ -151,7 +151,7 @@ look better.
     :caption: Tone mapping
     :language: glsl
     :linenos:
-    :emphasize-lines: 25-26
+    :emphasize-lines: 21-22
 
    :width: 60%
 
@@ -168,14 +168,14 @@ Python program:
 
     :caption: Run a shader
     :linenos:
-    :emphasize-lines: 17-20
+    :emphasize-lines: 17-19
 
 Then we can use those uniforms in our shader:
 
     :caption: Glow follows mouse, and color can be changed.
     :language: glsl
     :linenos:
-    :emphasize-lines: 3-4, 12, 15, 27
+    :emphasize-lines: 1-2, 8, 11, 23
 
    :width: 60%
 

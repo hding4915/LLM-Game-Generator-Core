@@ -1,4 +1,4 @@
-# Arcade Example: view_screens_minimal.py
+# Arcade 2.6.17 Example: view_screens_minimal.py
 Source: arcade/examples/view_screens_minimal.py
 
 ```python
@@ -24,8 +24,8 @@ python -m arcade.examples.view_screens_minimal
 import arcade
 
 
-WIDTH = 1280
-HEIGHT = 720
+WIDTH = 800
+HEIGHT = 600
 
 
 class MenuView(arcade.View):
@@ -33,7 +33,7 @@ class MenuView(arcade.View):
 
     def on_show_view(self):
         """ Called when switching to this view"""
-        self.window.background_color = arcade.color.WHITE
+        arcade.set_background_color(arcade.color.WHITE)
 
     def on_draw(self):
         """ Draw the menu """
@@ -62,7 +62,7 @@ class GameView(arcade.View):
 
     def on_show_view(self):
         """ Called when switching to this view"""
-        self.background_color = arcade.color.ORANGE_PEEL
+        arcade.set_background_color(arcade.color.ORANGE_PEEL)
 
     def on_draw(self):
         """ Draw everything for the game. """
@@ -82,7 +82,7 @@ class GameOverView(arcade.View):
     """ Class to manage the game over view """
     def on_show_view(self):
         """ Called when switching to this view"""
-        self.window.background_color = arcade.color.BLACK
+        arcade.set_background_color(arcade.color.BLACK)
 
     def on_draw(self):
         """ Draw the game over view """

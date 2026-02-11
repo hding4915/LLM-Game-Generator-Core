@@ -1,4 +1,4 @@
-Source: doc/tutorials/pymunk_platformer/pymunk_demo_platformer_05_diff.rst
+Source: Arcade 2.6.17 doc/tutorials/pymunk_platformer/pymunk_demo_platformer_05_diff.rst
 
 :orphan:
 

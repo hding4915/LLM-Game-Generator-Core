@@ -1,4 +1,4 @@
-# Arcade Example: sprite_move_angle.py
+# Arcade 2.6.17 Example: sprite_move_angle.py
 Source: arcade/examples/sprite_move_angle.py
 
 ```python
@@ -17,9 +17,9 @@ import math
 
 SPRITE_SCALING = 0.5
 
-WINDOW_WIDTH = 1280
-WINDOW_HEIGHT = 720
-WINDOW_TITLE = "Move Sprite by Angle Example"
+SCREEN_WIDTH = 800
+SCREEN_HEIGHT = 600
+SCREEN_TITLE = "Move Sprite by Angle Example"
 
 MOVEMENT_SPEED = 5
 ANGLE_SPEED = 5
@@ -32,35 +32,35 @@ class Player(arcade.Sprite):
         """ Set up the player """
 
         # Call the parent init
-        super().__init__(image, scale=scale)
+        super().__init__(image, scale)
 
         # Create a variable to hold our speed. 'angle' is created by the parent
         self.speed = 0
 
-    def update(self, delta_time: float = 1/60):
-        # Rotate the ship
-        self.angle += self.change_angle
-
+    def update(self):
         # Convert angle in degrees to radians.
         angle_rad = math.radians(self.angle)
 
+        # Rotate the ship
+        self.angle += self.change_angle
+
         # Use math to find our change based on our speed and angle
-        self.center_x += self.speed * math.sin(angle_rad)
+        self.center_x += -self.speed * math.sin(angle_rad)
         self.center_y += self.speed * math.cos(angle_rad)
 
 
-class GameView(arcade.View):
+class MyGame(arcade.Window):
     """
     Main application class.
     """
 
-    def __init__(self):
+    def __init__(self, width, height, title):
         """
         Initializer
         """
 
         # Call the parent class initializer
-        super().__init__()
+        super().__init__(width, height, title)
 
         # Variables that will hold sprite lists
         self.player_list = None
@@ -69,7 +69,7 @@ class GameView(arcade.View):
         self.player_sprite = None
 
         # Set the background color
-        self.background_color = arcade.color.BLACK
+        arcade.set_background_color(arcade.color.BLACK)
 
     def setup(self):
         """ Set up the game and initialize the variables. """
@@ -80,8 +80,8 @@ class GameView(arcade.View):
         # Set up the player
         self.player_sprite = Player(":resources:images/space_shooter/playerShip1_orange.png",
                                     SPRITE_SCALING)
-        self.player_sprite.center_x = WINDOW_WIDTH / 2
-        self.player_sprite.center_y = WINDOW_HEIGHT / 2
+        self.player_sprite.center_x = SCREEN_WIDTH / 2
+        self.player_sprite.center_y = SCREEN_HEIGHT / 2
         self.player_list.append(self.player_sprite)
 
     def on_draw(self):
@@ -100,7 +100,7 @@ class GameView(arcade.View):
 
         # Call update on all sprites (The sprites don't do much in this
         # example though.)
-        self.player_list.update(delta_time)
+        self.player_list.update()
 
     def on_key_press(self, key, modifiers):
         """Called whenever a key is pressed. """
@@ -113,9 +113,9 @@ class GameView(arcade.View):
 
         # Rotate left/right
         elif key == arcade.key.LEFT:
-            self.player_sprite.change_angle = -ANGLE_SPEED
-        elif key == arcade.key.RIGHT:
             self.player_sprite.change_angle = ANGLE_SPEED
+        elif key == arcade.key.RIGHT:
+            self.player_sprite.change_angle = -ANGLE_SPEED
 
     def on_key_release(self, key, modifiers):
         """Called when the user releases a key. """
@@ -128,17 +128,8 @@ class GameView(arcade.View):
 
 def main():
     """ Main function """
-    # Create a window class. This is what actually shows up on screen
-    window = arcade.Window(WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_TITLE)
-
-    # Create and setup the GameView
-    game = GameView()
-    game.setup()
-
-    # Show GameView on screen
-    window.show_view(game)
-
-    # Start the arcade game loop
+    window = MyGame(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
+    window.setup()
     arcade.run()
 
 

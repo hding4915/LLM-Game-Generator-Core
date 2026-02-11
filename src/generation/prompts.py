@@ -1,4 +1,3 @@
-# Art Director (產出 JSON)
 ART_PROMPT = """
 You are an Art Director. 
 Task: Analyze the GDD and define visuals using simple GEOMETRY.
@@ -14,52 +13,46 @@ Example Output:
 """
 
 PROGRAMMER_PROMPT_TEMPLATE = """
-You are an expert Python Arcade 3.0 Developer.
+You are an expert Python Arcade 2.6.x Developer.
 Task: Write the complete 'main.py' based on the Design and Assets.
 
-【CRITICAL RULES for ARCADE 3.0】:
+【CRITICAL RULES for ARCADE 2.x】:
 1. **Architecture**: 
    - Must use `class GameWindow(arcade.Window)`.
-   - NO global `while` loops. Use `arcade.run()` at the end.
-   - Use `setup()` for initialization (and restarting) and `on_draw()` for rendering.
+   - Use `setup()` for initialization/reset and `on_draw()` for rendering.
+   - Use `arcade.run()` at the end.
 
-2. **Strict Drawing API (Breaking Changes)**:
-   - **BANNED**: `draw_rectangle_filled` (Old API).
-   - **REQUIRED**: Use `arcade.draw_rect_filled(rect, color)`.
-     - You MUST create a rect object: `arcade.XYWH(cx, cy, w, h)` or `arcade.LBWH(left, bottom, w, h)`.
-   - **Colors**: Use `arcade.color.COLOR_NAME` or RGB tuples.
+2. **Standard Drawing API**:
+   - **REQUIRED**: Use legacy drawing functions:
+     - `arcade.draw_rectangle_filled(center_x, center_y, width, height, color)`
+     - `arcade.draw_circle_filled(center_x, center_y, radius, color)`
+     - `arcade.draw_line(start_x, start_y, end_x, end_y, color, line_width)`
+   - **Colors**: Use `arcade.color.COLOR_NAME` or `(r, g, b)` tuples.
 
-3. **Asset Management (No External Files)**:
-   - Do NOT load images (`arcade.load_texture`). 
-   - **Procedural Textures**: You MUST generate textures using `PIL` (Pillow) or `arcade.make_circle_texture` (if applicable) for Sprites.
-   - **Texture Constructor**: `arcade.Texture(image)` (Do NOT pass a name string).
+3. **Asset Management (Procedural)**:
+   - Do NOT load external files. 
+   - **PIL Integration**: Create textures using `PIL.Image`.
+   - **Texture Constructor**: `arcade.Texture(name_string, image_object)`. 
+     - *Crucial*: Each texture needs a unique name (e.g., f"sprite_{id(self)}").
 
 4. **Sprite & Physics**:
    - Inherit from `arcade.Sprite`.
-   - **Update Logic**: `on_update(self, delta_time)` is MANDATORY in the Window class.
-   - **Sprite Update**: `self.sprite_list.update()` passes `delta_time` to sprites automatically in 3.0. 
-     - Your Sprite's `update` method MUST accept it: `def update(self, delta_time: float = 1/60):`.
+   - **Update Logic**: Use `on_update(self, delta_time)` in the Window class.
+   - **Sprite Update**: `self.sprite_list.update()` usually calls the `update()` method of each sprite.
+     - Your Sprite's `update` method does NOT need `delta_time` unless you pass it manually.
 
-5. **Physics Strategy (Choose based on GDD)**:
-   - **Scenario A: Simple (Platformer/Top-down)**:
-     - Use `self.physics_engine = arcade.PhysicsEngineSimple(player, walls)`.
-   - **Scenario B: Complex (Pool/Physics Toys)**:
-     - Use `import pymunk`.
-     - Create `self.space = pymunk.Space()`.
-     - **Sync**: Manually sync Sprite positions to Pymunk bodies in `update()`.
+5. **Physics Strategy**:
+   - **Simple**: `self.physics_engine = arcade.PhysicsEngineSimple(player, walls)`.
+   - **Complex**: `import pymunk`. 
+     - Manually update `sprite.center_x/y` and `sprite.angle` (in degrees) from Pymunk body in each frame.
 
-6. **Game States (MANDATORY)**:
-   - Implement "START", "PLAYING", "GAME_OVER" states.
-   - **Start Screen**: Draw Title and "Click to Start".
-   - **Game Over**: Draw "Game Over" and "Click to Restart".
-   - **Restart Logic**: Calling `self.setup()` should fully reset the game.
-
-7. **Input Handling**:
+6. **Game States**:
+   - Implement "START", "PLAYING", "GAME_OVER" states using a `self.state` variable.
+   - **Mandatory**: Calling `arcade.start_render()` at the beginning of `on_draw()`.
+7. **GUI**:
+    - Make sure the gui will reflect to user's input.
+8. **Input Handling**:
    - Implement `on_key_press`, `on_mouse_press`, `on_mouse_drag`, `on_mouse_release`.
-   - **Dragging Logic (Pool/Slingshot)**:
-     - `on_mouse_press`: Set `self.start_x`, `self.start_y`, `self.aiming = True`.
-     - `on_mouse_drag`: Update `self.current_x/y` for drawing aim line.
-     - `on_mouse_release`: Calculate vector, apply force, set `self.aiming = False`.
 
 【CODE STRUCTURE TEMPLATE】:
 ```python
@@ -72,7 +65,7 @@ from PIL import Image, ImageDraw
 # Config
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
-SCREEN_TITLE = "Arcade 3.0 Game"
+SCREEN_TITLE = "Arcade 2.6 Game"
 
 # State Constants
 STATE_START = 0
@@ -80,21 +73,23 @@ STATE_PLAYING = 1
 STATE_GAME_OVER = 2
 
 class GameSprite(arcade.Sprite):
-    def __init__(self, color, size, x, y):
+    def __init__(self, color, size, x, y, shape="rect"):
         super().__init__()
-        # Generate Texture Programmatically
-        self.texture = self.make_texture(color, size)
-        self.center_x = x
-        self.center_y = y
-        self.body = None # Pymunk body
-
-    def make_texture(self, color, size):
+        # Generate Texture (Arcade 2.x style)
         img = Image.new('RGBA', (size, size), (0, 0, 0, 0))
         draw = ImageDraw.Draw(img)
-        draw.rectangle((0, 0, size, size), fill=color)
-        return arcade.Texture(img) 
+        if shape == "rect":
+            draw.rectangle((0, 0, size, size), fill=color)
+        else:
+            draw.ellipse((0, 0, size, size), fill=color)
 
-    def update(self, delta_time: float = 1/60):
+        # 2.x Texture needs a unique name
+        self.texture = arcade.Texture(f"tex_{random.random()}", img)
+        self.center_x = x
+        self.center_y = y
+        self.body = None 
+
+    def update(self):
         if self.body:
             self.center_x = self.body.position.x
             self.center_y = self.body.position.y
@@ -103,50 +98,34 @@ class GameSprite(arcade.Sprite):
 class GameWindow(arcade.Window):
     def __init__(self):
         super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
+        arcade.set_background_color(arcade.color.BLACK)
         self.state = STATE_START
         self.all_sprites = arcade.SpriteList()
         self.space = None 
 
     def setup(self):
-        # Initialize sprites and physics here (Reset Game)
         self.state = STATE_START
         self.all_sprites = arcade.SpriteList()
-        # ... setup physics ...
+        # Physics and Sprite initialization...
 
     def on_draw(self):
-        self.clear()
+        arcade.start_render() # 2.x MANDATORY
 
         if self.state == STATE_START:
-            arcade.draw_text("GAME TITLE", SCREEN_WIDTH/2, SCREEN_HEIGHT/2, arcade.color.WHITE, 30, anchor_x="center")
-            arcade.draw_text("Click to Start", SCREEN_WIDTH/2, SCREEN_HEIGHT/2 - 50, arcade.color.GRAY, 20, anchor_x="center")
-
+            arcade.draw_text("TITLE", SCREEN_WIDTH/2, SCREEN_HEIGHT/2, arcade.color.WHITE, 30, anchor_x="center")
         elif self.state == STATE_PLAYING:
             self.all_sprites.draw()
-            # Draw aiming lines or UI here
-
         elif self.state == STATE_GAME_OVER:
             arcade.draw_text("GAME OVER", SCREEN_WIDTH/2, SCREEN_HEIGHT/2, arcade.color.RED, 30, anchor_x="center")
-            arcade.draw_text("Click to Restart", SCREEN_WIDTH/2, SCREEN_HEIGHT/2 - 50, arcade.color.WHITE, 20, anchor_x="center")
 
     def on_update(self, delta_time):
         if self.state == STATE_PLAYING:
-            if self.space:
-                self.space.step(1/60)
+            if self.space: self.space.step(1/60)
             self.all_sprites.update() 
 
     def on_mouse_press(self, x, y, button, modifiers):
-        if self.state == STATE_START:
-            self.state = STATE_PLAYING
-            # Optional: Setup actual game level here if needed
-        elif self.state == STATE_GAME_OVER:
-            self.setup() # Restart
-        elif self.state == STATE_PLAYING:
-            # Handle game input
-            pass
-
-    def on_mouse_release(self, x, y, button, modifiers):
-        if self.state == STATE_PLAYING:
-            pass
+        if self.state == STATE_START: self.state = STATE_PLAYING
+        elif self.state == STATE_GAME_OVER: self.setup()
 
 def main():
     window = GameWindow()
@@ -155,52 +134,58 @@ def main():
 
 if __name__ == "__main__":
     main()
-```
 """
 
-# Fuzzer Script Generator Prompt (Arcade 3.0 Event-Driven Version)
 FUZZER_GENERATION_PROMPT = """
-You are a QA Automation Engineer specializing in Python Arcade.
+You are a QA Automation Engineer specializing in Python Arcade 2.x.
 Task: Write a "Monkey Bot" logic block to stress-test the Arcade game.
 
 【GDD / RULES】:
 {gdd}
 
 【INSTRUCTIONS】:
-1. Arcade does not have a global event loop queue we can post to.
-2. Instead, generate code that **Directly Calls** the window's event methods to simulate input:
-   - `window.on_mouse_press(x, y, button, modifiers)`
-   - `window.on_mouse_release(x, y, button, modifiers)`
-   - `window.on_key_press(key, modifiers)`
-3. **Handling Dragging (Crucial for Physics Games)**:
-   - Simulate `on_mouse_press` at a start location.
-   - Simulate `on_mouse_release` at a **DIFFERENT** location (min 100px distance) to ensure force is applied.
-   - Target the center of the screen `SCREEN_WIDTH // 2` to hit objects.
-4. Output ONLY the python logic block.
+1. Arcade 2.x uses standard event methods. Directly call these on the `window` instance.
+2. **Parameters**: Ensure `button` and `modifiers` are passed as integers (e.g., `arcade.MOUSE_BUTTON_LEFT`).
+3. **Coordinates**: Use random coordinates within `SCREEN_WIDTH` and `SCREEN_HEIGHT`.
+4. **Logic**: Simulate random keys and mouse drags (press -> release) to trigger physics impulses.
 
 【EXAMPLE OUTPUT FORMAT】:
 ```python
-# Randomly Key Press
+# Random Keyboard Input (Arcade 2.x)
 if random.random() < 0.1:
-    keys = [arcade.key.LEFT, arcade.key.RIGHT, arcade.key.UP, arcade.key.DOWN]
-    k = random.choice(keys)
-    window.on_key_press(k, 0)
+    keys = [arcade.key.LEFT, arcade.key.RIGHT, arcade.key.UP, arcade.key.SPACE]
+    window.on_key_press(random.choice(keys), 0)
 
-# Randomly Drag-and-Shoot (Mouse)
-# Simulates a STRONG pull back
+# Random Drag-and-Shoot (Physics Simulation)
 if random.random() < 0.05:
-    start_x = SCREEN_WIDTH // 2
-    start_y = SCREEN_HEIGHT // 2
+    cx, cy = SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2
+    # Start Drag
+    window.on_mouse_press(cx, cy, arcade.MOUSE_BUTTON_LEFT, 0)
+    # End Drag with Offset
+    window.on_mouse_release(cx + random.randint(-200, 200), cy + random.randint(-200, 200), arcade.MOUSE_BUTTON_LEFT, 0)
+"""
 
-    # Simulate Press (Start Drag)
-    window.on_mouse_press(start_x, start_y, arcade.MOUSE_BUTTON_LEFT, 0)
-
-    # Calculate Release Point (Strong Pull for Physics)
-    # Using large offsets to ensure movement
-    dx = random.choice([-150, 150]) + random.randint(-50, 50)
-    dy = random.choice([-150, 150]) + random.randint(-50, 50)
-    end_x, end_y = start_x + dx, start_y + dy
-
-    # Simulate Release (Fire)
-    window.on_mouse_release(end_x, end_y, arcade.MOUSE_BUTTON_LEFT, 0)
+COMMON_DEVELOPER_INSTRUCTION = """
+CRITICAL INSTRUCTIONS FOR TOOL USAGE:
+1. **Source of Truth**: The output from tools is the ABSOLUTE TRUTH. If your training data conflicts, OBEY THE TOOL.
+2. **API Strictness (ARCADE 2.x ONLY)**: 
+   - **Drawing**: NEVER use `draw_rect_filled`. Use `arcade.draw_rectangle_filled(center_x, center_y, width, height, color)`.
+   - **Rendering**: ALWAYS call `arcade.start_render()` as the first line inside `on_draw`. Do NOT use `self.clear()`.
+   - **Cameras**: Use `arcade.Camera(width, height)`. Call `self.camera.use()` before drawing UI or Sprites if scrolling is needed.
+3. **Update Logic**: 
+   - **Sprite.update**: The `update` method in a Sprite class usually does NOT take `delta_time`.
+     Example: `def update(self):` 
+     (If you need time-based logic, use `self.on_update(delta_time)` in the Window class and update variables there.)
+4. **Coordinate Systems**: 
+   - Arcade's (0,0) is BOTTOM-LEFT.
+   - For grids: `x = start_x + col * cell_size`. Ensure centers are calculated correctly.
+5. **Texture Management**:
+   - In 2.x, when creating textures from PIL, you MUST provide a unique name string as the first argument:
+     `arcade.Texture(f"unique_id_{id(self)}", pil_image)`.
+6. **Grid & Adjacency Safety (MANDATORY)**:
+   - When checking neighboring cells (e.g., `grid[i+1][j]`), you MUST NOT assume the cell exists.
+   - ALWAYS use the pattern: `if grid[i][j] is not None and grid[i+1][j] is not None:` before comparing values.
+   - This is especially critical for logic like `check_loss_condition` or `merge_tiles`.
+   - Failing to check for `None` before accessing `.value` or `.type` is a CRITICAL FAILURE.
+Please generate the code now based on these findings.
 """

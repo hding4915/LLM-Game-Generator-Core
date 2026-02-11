@@ -1,4 +1,4 @@
-# Arcade Example: shapes.py
+# Arcade 2.6.17 Example: shapes.py
 Source: arcade/examples/shapes.py
 
 ```python
@@ -16,11 +16,11 @@ import arcade
 import random
 
 # Set up the constants
-WINDOW_WIDTH = 1280
-WINDOW_HEIGHT = 720
-WINDOW_TITLE = "Shapes!"
+SCREEN_WIDTH = 800
+SCREEN_HEIGHT = 600
+SCREEN_TITLE = "Shapes!"
 
-NUMBER_OF_SHAPES = 200
+NUMBER_OF_SHAPES = 500
 
 
 class Shape:
@@ -45,9 +45,9 @@ class Shape:
             self.delta_x *= -1
         if self.y < 0 and self.delta_y < 0:
             self.delta_y *= -1
-        if self.x > WINDOW_WIDTH and self.delta_x > 0:
+        if self.x > SCREEN_WIDTH and self.delta_x > 0:
             self.delta_x *= -1
-        if self.y > WINDOW_HEIGHT and self.delta_y > 0:
+        if self.y > SCREEN_HEIGHT and self.delta_y > 0:
             self.delta_y *= -1
 
 
@@ -61,8 +61,8 @@ class Ellipse(Shape):
 class Rectangle(Shape):
 
     def draw(self):
-        arcade.draw_rect_filled(arcade.rect.XYWH(self.x, self.y, self.width, self.height),
-                                self.color, self.angle)
+        arcade.draw_rectangle_filled(self.x, self.y, self.width, self.height,
+                                     self.color, self.angle)
 
 
 class Line(Shape):
@@ -73,12 +73,12 @@ class Line(Shape):
                          self.color, 2)
 
 
-class GameView(arcade.View):
+class MyGame(arcade.Window):
     """ Main application class. """
 
     def __init__(self):
         # Call the parent __init__
-        super().__init__()
+        super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
 
         # Create a shape list
         self.shape_list = []
@@ -86,8 +86,8 @@ class GameView(arcade.View):
         for i in range(NUMBER_OF_SHAPES):
 
             # Random spot
-            x = random.randrange(0, WINDOW_WIDTH)
-            y = random.randrange(0, WINDOW_HEIGHT)
+            x = random.randrange(0, SCREEN_WIDTH)
+            y = random.randrange(0, SCREEN_HEIGHT)
 
             # Random size
             width = random.randrange(15, 40)
@@ -130,6 +130,8 @@ class GameView(arcade.View):
 
     def on_draw(self):
         """ Render the screen. """
+
+        # Clear teh screen
         self.clear()
 
         # Draw the shapes
@@ -138,17 +140,7 @@ class GameView(arcade.View):
 
 
 def main():
-    """ Main function """
-    # Create a window class. This is what actually shows up on screen
-    window = arcade.Window(WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_TITLE)
-
-    # Create the GameView
-    game = GameView()
-
-    # Show GameView on screen
-    window.show_view(game)
-
-    # Start the arcade game loop
+    MyGame()
     arcade.run()
 
 

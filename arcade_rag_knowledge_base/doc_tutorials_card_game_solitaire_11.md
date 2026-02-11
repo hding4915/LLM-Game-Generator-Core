@@ -1,4 +1,4 @@
-Source: doc/tutorials/card_game/solitaire_11.rst
+Source: Arcade 2.6.17 doc/tutorials/card_game/solitaire_11.rst
 
 :orphan:
 

@@ -98,6 +98,6 @@ class Config:
 
     # Arcade config
     ARCADE_SOURCE_DIR = os.path.join(os.path.dirname(__file__), "arcade_rag_knowledge_base")
-    ARCADE_COLLECTION_NAME = "arcade_v3_knowledge"
+    ARCADE_COLLECTION_NAME = "arcade_v2_knowledge"
 
 config = Config()

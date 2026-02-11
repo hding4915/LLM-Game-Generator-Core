@@ -1,4 +1,4 @@
-Source: doc/tutorials/crt_filter/index.rst
+Source: Arcade 2.6.17 doc/tutorials/crt_filter/index.rst
 
 
 # CRT Filter

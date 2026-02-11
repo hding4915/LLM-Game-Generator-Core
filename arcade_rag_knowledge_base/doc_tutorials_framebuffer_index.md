@@ -1,4 +1,4 @@
-Source: doc/tutorials/framebuffer/index.rst
+Source: Arcade 2.6.17 doc/tutorials/framebuffer/index.rst
 
 # Working With FrameBuffer Objects
 
@@ -14,10 +14,10 @@ Then create a simple program with a frame buffer:
 
 Now, color everything that doesn't have an alpha of zero as green:
 
-    :caption: Green where alpha is not zero in the FBO
+    :caption: Pass-through frame buffer
     :linenos:
 
 Something about passing uniform data to the shader:
 
-    :caption: Passing uniform data to the shader
+    :caption: Pass-through frame buffer
     :linenos:

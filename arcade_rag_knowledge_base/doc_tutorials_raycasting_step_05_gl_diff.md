@@ -1,4 +1,4 @@
-Source: doc/tutorials/raycasting/step_05_gl_diff.rst
+Source: Arcade 2.6.17 doc/tutorials/raycasting/step_05_gl_diff.rst
 
 :orphan:
 
